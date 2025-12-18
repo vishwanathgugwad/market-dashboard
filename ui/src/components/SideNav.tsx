@@ -32,15 +32,37 @@ const SideNav = ({ width }: SideNavProps) => {
         flexShrink: 0,
         position: 'fixed',
         height: '100vh',
-        borderRight: 1,
-        borderColor: 'divider',
-        bgcolor: '#fff',
+        borderRight: '1px solid rgba(124, 255, 203, 0.16)',
+        bgcolor: 'linear-gradient(180deg, #0f1b2d 0%, #0b1220 100%)',
+        color: 'text.primary',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
       }}
     >
-      <Toolbar>
-        <Typography variant="h6" component="div">
-          MarketNav
-        </Typography>
+      <Toolbar sx={{ alignItems: 'center', gap: 1 }}>
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(34,209,238,0.25), rgba(124,255,203,0.2))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(34, 209, 238, 0.35)',
+          }}
+        >
+          <Typography variant="subtitle1" fontWeight={700} color="primary.light">
+            IB
+          </Typography>
+        </Box>
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+            Monitor
+          </Typography>
+          <Typography variant="h6" component="div" fontWeight={700}>
+            Index Breadth
+          </Typography>
+        </Box>
       </Toolbar>
       <Divider />
       <List>
