@@ -1,19 +1,27 @@
 const express = require("express");
 const { computeBreadth } = require("./services/breadth");
 
-function createServer({ stream, candleStore, niftyTokens }) {
+function createServer({ stream, candleStore, indexTokens }) {
   const app = express();
 
   // store tokens for routes
-  app.locals.niftyTokens = niftyTokens || [];
+  app.locals.indexTokens = indexTokens || {};
 
   app.get("/health", (req, res) => {
+    const indexSummary = Object.fromEntries(
+      Object.entries(app.locals.indexTokens).map(([key, val]) => [key, {
+        name: val.name,
+        tokens: val.tokens.length,
+        missing: val.missing.length,
+      }])
+    );
+
     res.json({
       ok: true,
       service: "market-stream",
       stream: stream.status(),
       candles: candleStore?.stats?.(),
-      niftyTokens: app.locals.niftyTokens.length,
+      indexes: indexSummary,
       now: new Date(),
     });
   });
@@ -26,17 +34,26 @@ function createServer({ stream, candleStore, niftyTokens }) {
   });
 
   // ✅ Breadth endpoint (adv/dec) - MUST be inside createServer
-  app.get("/index/nifty50/breadth", (req, res) => {
+  app.get("/index/:index/breadth", (req, res) => {
     const tf = (req.query.tf || "5m").toLowerCase();
     const baseline = (req.query.baseline || "prevClose"); // "prevClose" or "open"
-  
+    const indexKey = (req.params.index || "").toLowerCase();
+    const indexInfo = app.locals.indexTokens[indexKey];
+
+    if (!indexInfo) {
+      return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
+    }
+
     const result = computeBreadth({
-      tokens: app.locals.niftyTokens,
+      tokens: indexInfo.tokens,
       candleStore,
       tf,
       baseline,
     });
-    res.json(result);
+    res.json({
+      index: { key: indexKey, name: indexInfo.name },
+      ...result,
+    });
   });
 
   return app;

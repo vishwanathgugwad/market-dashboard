@@ -1,24 +1,26 @@
 const env = require("./config/env");
 const { createServer } = require("./server");
 const { KiteStream } = require("./services/kiteStream");
-const { buildNiftyTokens } = require("./services/niftyTokens");
 const { loadInstruments } = require("./services/instruments");
 const { CandleStore } = require("./services/candles");
+const { buildIndexTokens } = require("./services/indexTokens");
 
 async function main() {
   const instruments = await loadInstruments();
-  const { tokens, missing } = buildNiftyTokens(instruments);
+  const { indexMap, allTokens } = buildIndexTokens(instruments);
 
   console.log(`Loaded instruments: ${instruments.length}`);
-  console.log(`Nifty tokens found: ${tokens.length}`);
-  console.log(`Missing symbols (${missing.length}):`, missing);
+  for (const [key, info] of Object.entries(indexMap)) {
+    console.log(`Index ${key} (${info.name}) tokens: ${info.tokens.length}`);
+    console.log(`Missing symbols (${info.missing.length}):`, info.missing);
+  }
 
   const candleStore = new CandleStore({ maxPoints: 2000 });
 
   const stream = new KiteStream({
     apiKey: env.KITE_API_KEY,
     accessToken: env.KITE_ACCESS_TOKEN,
-    tokens,
+    tokens: allTokens,
   });
 
   // IMPORTANT: ingest ticks into candles
@@ -35,7 +37,7 @@ async function main() {
   });
 
   // Create server AFTER stream + candleStore exist
-  const app = createServer({ stream, candleStore, niftyTokens: tokens });
+  const app = createServer({ stream, candleStore, indexTokens: indexMap });
   app.listen(env.PORT, () => console.log(`HTTP listening on :${env.PORT}`));
 }
 
