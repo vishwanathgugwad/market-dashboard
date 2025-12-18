@@ -1,12 +1,20 @@
 {
   "name": "market-dashboard",
+  "private": true,
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "workspaces": [
+    "ui"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "ws:test": "node src/ws-test.js",
-    "dev": "nodemon src/index.js",
+    "dev": "npm run dev:ui",
+    "dev:ui": "npm --workspace ui run dev -- --host",
+    "dev:server": "nodemon src/index.js",
+    "build:ui": "npm --workspace ui run build",
+    "preview:ui": "npm --workspace ui run preview",
     "start": "node src/index.js"
   },
   "keywords": [],
