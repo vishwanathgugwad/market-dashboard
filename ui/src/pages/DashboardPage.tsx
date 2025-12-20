@@ -1,4 +1,3 @@
-import SearchIcon from '@mui/icons-material/Search';
 import {
   Avatar,
   Box,
@@ -6,9 +5,7 @@ import {
   CardContent,
   CircularProgress,
   Divider,
-  InputAdornment,
   Stack,
-  TextField,
   Typography,
   alpha,
 } from '@mui/material';
@@ -37,7 +34,6 @@ const DashboardPage = () => {
     () => [
       { label: 'Advances', value: 1425, color: '#55efc4', note: 'rising issues across the exchange' },
       { label: 'Declines', value: 937, color: '#ff7b7b', note: 'pulling back from session highs' },
-      { label: 'Unchanged', value: 188, color: '#cfd8e3', note: 'holding flat versus prior close' },
     ],
     [],
   );
@@ -60,43 +56,6 @@ const DashboardPage = () => {
 
   return (
     <Stack spacing={3}>
-      <Box
-        display="flex"
-        alignItems="center"
-        gap={2}
-        sx={{
-          background: (theme) =>
-            `linear-gradient(110deg, ${alpha(theme.palette.primary.main, 0.16)}, ${alpha(theme.palette.secondary.main, 0.12)}), rgba(13,23,36,0.8)`,
-          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
-          boxShadow: '0 18px 50px rgba(0,0,0,0.4)',
-          p: 2,
-          borderRadius: 3,
-        }}
-      >
-        <TextField
-          placeholder="Search symbols, indices or breadth metrics"
-          fullWidth
-          variant="outlined"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" color="primary" />
-              </InputAdornment>
-            ),
-            sx: {
-              bgcolor: 'rgba(255,255,255,0.04)',
-              borderRadius: 2,
-              '& fieldset': {
-                borderColor: 'rgba(255,255,255,0.08)',
-              },
-            },
-          }}
-        />
-        <Typography variant="body2" color="text.secondary" sx={{ minWidth: 180, textAlign: 'right' }}>
-          Live market pulse · curated for you
-        </Typography>
-      </Box>
-
       <IndexSelector options={INDEX_OPTIONS} selected={selectedIndex} onChange={setSelectedIndex} />
 
       <Box display="flex" gap={3} flexWrap={{ xs: 'wrap', lg: 'nowrap' }}>
