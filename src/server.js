@@ -109,6 +109,66 @@ function createServer({ stream, candleStore, indexTokens }) {
     }
   });
 
+  // Historical daily breadth stream (Server Sent Events)
+  app.get("/historical/:index/daily/stream", async (req, res) => {
+    const indexKey = (req.params.index || "").toLowerCase();
+    const days = Number(req.query.days) || 60;
+    const indexInfo = app.locals.indexTokens[indexKey];
+
+    if (!indexInfo) return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
+
+    let closed = false;
+    const send = (event, data) => {
+      if (closed) return;
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const keepAlive = setInterval(() => send("ping", { at: new Date().toISOString() }), 15000);
+
+    req.on("close", () => {
+      closed = true;
+      clearInterval(keepAlive);
+    });
+
+    let tradingDays;
+    try {
+      const result = await getTradingDaysForIndex({ indexKey, indexInfo, limit: days });
+      tradingDays = result.days || [];
+      send("meta", { index: { key: indexKey, name: indexInfo.name }, totalDays: tradingDays.length });
+    } catch (err) {
+      send("error", { message: "Failed to load trading days" });
+      clearInterval(keepAlive);
+      return res.end();
+    }
+
+    const ordered = [...tradingDays].reverse(); // oldest to newest for sequential display
+    let emitted = 0;
+
+    for (const date of ordered) {
+      if (closed) break;
+      try {
+        const result = await getDailyBreadth({ indexKey, indexInfo, date });
+        emitted++;
+        send("data", result);
+      } catch (err) {
+        send("data-error", {
+          date,
+          message: err?.message || "Failed to compute daily breadth",
+        });
+      }
+    }
+
+    send("done", { count: emitted });
+    clearInterval(keepAlive);
+    res.end();
+  });
+
   // Historical intraday breadth
   app.get("/historical/:index/intraday", async (req, res) => {
     const indexKey = (req.params.index || "").toLowerCase();

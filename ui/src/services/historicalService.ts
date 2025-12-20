@@ -49,3 +49,34 @@ export const getIntradayBreadth = async (
   tf: string,
 ): Promise<IntradayBreadthResponse> =>
   request<IntradayBreadthResponse>(`/historical/${indexKey}/intraday`, { date, tf });
+
+type DailyBreadthStreamHandlers = {
+  onMeta?: (payload: { index: { key: string; name: string }; totalDays: number }) => void;
+  onData?: (payload: DailyBreadthResponse) => void;
+  onDataError?: (payload: { date: string; message: string }) => void;
+  onDone?: (payload: { count: number }) => void;
+  onError?: (message: string) => void;
+};
+
+export const streamDailyBreadth = (
+  indexKey: string,
+  days = 60,
+  handlers: DailyBreadthStreamHandlers = {},
+) => {
+  const url = buildUrl(`/historical/${indexKey}/daily/stream`, { days });
+  const es = new EventSource(url);
+
+  es.addEventListener('meta', (ev) => handlers.onMeta?.(JSON.parse(ev.data)));
+  es.addEventListener('data', (ev) => handlers.onData?.(JSON.parse(ev.data)));
+  es.addEventListener('data-error', (ev) => handlers.onDataError?.(JSON.parse(ev.data)));
+  es.addEventListener('done', (ev) => handlers.onDone?.(JSON.parse(ev.data)));
+  es.addEventListener('error', () => {
+    handlers.onError?.('Stream disconnected');
+    es.close();
+  });
+
+  return {
+    close: () => es.close(),
+    source: es,
+  };
+};
