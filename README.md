@@ -17,6 +17,25 @@ Designed to support **multiple indices** (Nifty 50, Bank Nifty, FinNifty, Midcap
 
 ---
 
+## ⚙️ Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Create your environment file:
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in `KITE_API_KEY` and `KITE_ACCESS_TOKEN` with your Zerodha Kite credentials.
+3. Start the backend:
+   ```bash
+   npm run dev:server
+   ```
+   By default the API listens on `http://localhost:3000`.
+
+---
+
 ## 📡 APIs
 
 ### Health
@@ -62,6 +81,12 @@ Returns:
 - top 5 gainers / losers vs previous close (or vs candle open if `baseline=open`)
 
 If your Kite instrument dump does not contain a ticker symbol, it will be excluded from the breadth counts. Use `findSimilarSymbols` helper in `src/services/indexTokens.js` to quickly get the updated name.
+
+### Quick test URLs
+- Health: [`http://localhost:3000/health`](http://localhost:3000/health)
+- Candles for a token (replace `12345` with an instrument token): [`http://localhost:3000/candles/12345?tf=5m`](http://localhost:3000/candles/12345?tf=5m)
+- Breadth for an index (e.g., `nifty50`): [`http://localhost:3000/index/nifty50/breadth?tf=5m&baseline=prevClose`](http://localhost:3000/index/nifty50/breadth?tf=5m&baseline=prevClose)
+- Historical trading days (requires `index` query): [`http://localhost:3000/historical/trading-days?index=nifty50&days=30`](http://localhost:3000/historical/trading-days?index=nifty50&days=30)
 
 ---
 

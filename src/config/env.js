@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
 
@@ -25,6 +26,8 @@ function loadEnv() {
 }
 
 const loadedEnvFiles = loadEnv();
+const sampleEnvPath = path.resolve(__dirname, "../../.env.example");
+const hasSampleEnv = fs.existsSync(sampleEnvPath);
 
 function must(name) {
   const v = process.env[name];
@@ -35,7 +38,9 @@ function must(name) {
         : "none (no .env files found in project root)";
 
     throw new Error(
-      `Missing env var: ${name}. Checked env files: ${checked}. Ensure .env (or .env.local) exists at the project root with required keys.`
+      `Missing env var: ${name}. Checked env files: ${checked}. Ensure .env (or .env.local) exists at the project root with required keys.${
+        hasSampleEnv ? " Copy .env.example to .env and fill in your Kite credentials." : ""
+      }`
     );
   }
   return v;
