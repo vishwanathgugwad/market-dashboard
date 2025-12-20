@@ -2,12 +2,16 @@ const aliases = require("../data/symbolAliases");
 const indexes = require("../data/indexes");
 
 function buildIndexTokens(instruments) {
+  const equityInstrumentMap = new Map();
   const instrumentMap = new Map();
 
   for (const row of instruments) {
     if (row.exchange !== "NSE") continue;
+    const token = Number(row.instrument_token);
+    instrumentMap.set(row.tradingsymbol, token);
+
     if (row.instrument_type !== "EQ") continue;
-    instrumentMap.set(row.tradingsymbol, Number(row.instrument_token));
+    equityInstrumentMap.set(row.tradingsymbol, token);
   }
 
   const indexMap = {};
@@ -20,7 +24,7 @@ function buildIndexTokens(instruments) {
 
     for (const rawSym of symbols) {
       const sym = aliases[rawSym] || rawSym;
-      const token = instrumentMap.get(sym);
+      const token = equityInstrumentMap.get(sym);
 
       if (!token) missing.push(rawSym);
       else {
@@ -29,15 +33,22 @@ function buildIndexTokens(instruments) {
       }
     }
 
+    const indexToken = def.indexSymbol ? instrumentMap.get(def.indexSymbol) : null;
+
     indexMap[key] = {
       name: def.name || key,
+      indexToken: indexToken ? Number(indexToken) : null,
       tokens,
       missing,
       symbols: [...symbols],
     };
   }
 
-  return { indexMap, allTokens: [...allTokens], availableCount: instrumentMap.size };
+  return {
+    indexMap,
+    allTokens: [...allTokens],
+    availableCount: equityInstrumentMap.size,
+  };
 }
 
 function findSimilarSymbols(instruments, startsWith) {
