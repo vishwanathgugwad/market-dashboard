@@ -9,6 +9,14 @@ const {
 function createServer({ stream, candleStore, indexTokens }) {
   const app = express();
 
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
+
   // store tokens for routes
   app.locals.indexTokens = indexTokens || {};
 
