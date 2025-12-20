@@ -1,28 +1,34 @@
 import { Box } from '@mui/material';
 import { Outlet } from 'react-router-dom';
-import SideNav from '../components/SideNav';
+import HeaderNav from '../components/HeaderNav';
 
-const DRAWER_WIDTH = 240;
+const navItems = [
+  { label: 'DASHBOARD', path: '/dashboard' },
+  { label: 'HISTORICAL DATA', path: '/historical' },
+];
 
 const AppLayout = () => {
   return (
     <Box
       sx={{
-        display: 'flex',
         minHeight: '100vh',
         bgcolor: 'background.default',
-        backgroundImage:
-          'radial-gradient(circle at 20% 20%, rgba(34,209,238,0.06), transparent 35%), radial-gradient(circle at 80% 0%, rgba(124,255,203,0.05), transparent 30%)',
+        color: 'text.primary',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <SideNav width={DRAWER_WIDTH} />
+      <HeaderNav items={navItems} />
+
       <Box
         component="main"
         sx={{
           flex: 1,
-          padding: 4,
-          marginLeft: `${DRAWER_WIDTH}px`,
-          color: 'text.primary',
+          width: '100%',
+          maxWidth: '1360px',
+          mx: 'auto',
+          px: { xs: 2, md: 4 },
+          py: { xs: 3, md: 5 },
         }}
       >
         <Outlet />

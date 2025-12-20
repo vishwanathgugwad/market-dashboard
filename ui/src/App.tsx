@@ -3,72 +3,64 @@ import AppLayout from './layouts/AppLayout';
 
 const theme = createTheme({
   palette: {
-    mode: 'dark',
+    mode: 'light',
     primary: {
-      main: '#22d1ee',
+      main: '#0f172a',
     },
     secondary: {
-      main: '#7cffcb',
+      main: '#14b8a6',
     },
     background: {
-      default: '#0b1624',
-      paper: 'rgba(13, 23, 36, 0.9)',
+      default: '#f7f9fb',
+      paper: '#ffffff',
     },
     text: {
-      primary: '#e8f0ff',
-      secondary: '#9fb3c8',
+      primary: '#0f172a',
+      secondary: '#6b7280',
     },
   },
   shape: {
-    borderRadius: 16,
+    borderRadius: 18,
   },
   components: {
     MuiCard: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(145deg, rgba(18,31,47,0.9), rgba(11,18,32,0.9))',
-          border: '1px solid rgba(124, 255, 203, 0.12)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
+          backgroundColor: '#ffffff',
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          background: 'rgba(13, 23, 36, 0.96)',
-        },
-      },
-    },
-    MuiToolbar: {
-      styleOverrides: {
-        root: {
-          color: '#e8f0ff',
-        },
-      },
-    },
-    MuiListItemButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          marginInline: 8,
-          marginBlock: 4,
-          '&.Mui-selected': {
-            backgroundColor: 'rgba(34, 209, 238, 0.12)',
-            color: '#22d1ee',
-          },
+          backgroundColor: '#ffffff',
         },
       },
     },
     MuiToggleButton: {
       styleOverrides: {
         root: {
-          borderColor: 'rgba(34, 209, 238, 0.2)',
-          color: '#e8f0ff',
-          background: 'rgba(255,255,255,0.03)',
+          borderColor: '#e5e7eb',
+          color: '#0f172a',
+          textTransform: 'none',
           '&.Mui-selected': {
-            background: 'linear-gradient(90deg, rgba(34,209,238,0.2), rgba(124,255,203,0.15))',
-            color: '#22d1ee',
+            backgroundColor: '#0f172a',
+            color: '#ffffff',
+            borderColor: '#0f172a',
           },
+        },
+      },
+    },
+    MuiCssBaseline: {
+      styleOverrides: {
+        '::-webkit-scrollbar': {
+          width: 8,
+        },
+        '::-webkit-scrollbar-thumb': {
+          backgroundColor: '#d1d5db',
+          borderRadius: 999,
         },
       },
     },
