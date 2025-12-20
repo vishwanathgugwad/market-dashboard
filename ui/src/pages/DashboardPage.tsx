@@ -6,6 +6,7 @@ import IndexChartCard from '../components/IndexChartCard';
 import MarketBreadthTable from '../components/MarketBreadthTable';
 import MetricCard from '../components/MetricCard';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
+import LiveChatCard from '../components/LiveChatCard';
 import { getIndexSeries } from '../services/indexService';
 import { IndexSeriesPoint } from '../types/indices';
 
@@ -186,30 +187,7 @@ const DashboardPage = () => {
           </Box>
         </Stack>
 
-        <Card sx={{ height: '100%', minHeight: 480 }}>
-          <CardContent sx={{ p: 3, height: '100%' }}>
-            <Typography
-              variant="subtitle2"
-              sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#6b7280', mb: 2 }}
-            >
-              Live Chat
-            </Typography>
-            <Box
-              sx={{
-                border: '1px dashed #d1d5db',
-                borderRadius: 2,
-                height: '100%',
-                minHeight: 400,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'text.secondary',
-              }}
-            >
-              Coming soon
-            </Box>
-          </CardContent>
-        </Card>
+        <LiveChatCard contextLabel={selectedIndex} marketOpen={marketOpen} />
       </Box>
     </Stack>
   );
