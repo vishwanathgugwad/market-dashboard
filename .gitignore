@@ -2,3 +2,7 @@ node_modules/
 .env
 .env.*
 logs/
+ui/dist/
+ui/tsconfig*.tsbuildinfo
+ui/vite.config.d.ts
+ui/vite.config.js
