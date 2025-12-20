@@ -9,14 +9,13 @@ import {
   YAxis,
 } from 'recharts';
 import { IndexSeriesPoint } from '../types/indices';
+export type ChartDatum = { timestamp: string } & Record<string, number | string>;
 
 interface LineConfig {
   dataKey: string;
   color: string;
   strokeWidth?: number;
 }
-
-type ChartDatum = { timestamp: string } & Record<string, number | string>;
 
 interface IndexChartCardProps {
   title: string;
