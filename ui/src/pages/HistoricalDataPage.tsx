@@ -1,9 +1,14 @@
 import { Alert, Box, Card, CardContent, CircularProgress, Stack, Typography } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
 import DateSelector from '../components/DateSelector';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
-import { getDailyBreadth, getIntradayBreadth, getTradingDays } from '../services/historicalService';
+import {
+  getDailyBreadth,
+  getIntradayBreadth,
+  getTradingDays,
+  streamDailyBreadth,
+} from '../services/historicalService';
 import { DailyBreadthResponse, IntradayBreadthResponse } from '../types/historical';
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
@@ -43,6 +48,11 @@ const HistoricalDataPage = () => {
   const [loadingDaily, setLoadingDaily] = useState<boolean>(false);
   const [loadingIntraday, setLoadingIntraday] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string>('');
+  const [streamedDaily, setStreamedDaily] = useState<DailyBreadthResponse[]>([]);
+  const [streamProgress, setStreamProgress] = useState<{ total: number; received: number }>({ total: 0, received: 0 });
+  const [streaming, setStreaming] = useState<boolean>(false);
+  const [streamError, setStreamError] = useState<string>('');
+  const streamRef = useRef<{ close: () => void } | null>(null);
 
   useEffect(() => {
     const loadDays = async () => {
@@ -110,6 +120,43 @@ const HistoricalDataPage = () => {
     loadIntradayAll();
   }, [selectedIndex, selectedDate]);
 
+  useEffect(() => {
+    streamRef.current?.close();
+    setStreamError('');
+    setStreamProgress({ total: 0, received: 0 });
+    setStreamedDaily([]);
+    setStreaming(true);
+
+    const controller = streamDailyBreadth(selectedIndex, 60, {
+      onMeta: (meta) => setStreamProgress((prev) => ({ ...prev, total: meta.totalDays || prev.total })),
+      onData: (payload) =>
+        setStreamedDaily((prev) => {
+          const existing = prev.find((p) => p.date === payload.date);
+          if (existing) return prev;
+          return [...prev, payload];
+        }),
+      onDataError: (info) => setStreamError((prev) => prev || `Failed to load ${info.date}: ${info.message}`),
+      onDone: (info) => {
+        setStreamProgress((prev) => ({ ...prev, received: info.count ?? prev.received }));
+        setStreaming(false);
+      },
+      onError: (message) => {
+        setStreamError((prev) => prev || message);
+        setStreaming(false);
+      },
+    });
+
+    streamRef.current = controller;
+
+    return () => {
+      controller.close();
+    };
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    setStreamProgress((prev) => ({ ...prev, received: streamedDaily.length }));
+  }, [streamedDaily.length]);
+
   const intradayRows = useMemo(() => {
     const map: Record<string, BreadthRow[]> = {};
     TIMEFRAMES.forEach((tf) => {
@@ -168,63 +215,143 @@ const HistoricalDataPage = () => {
               >
                 Daily Candle Market Breadth
               </Typography>
-              {loadingDaily ? (
-                <Box display="flex" alignItems="center" justifyContent="center" py={6}>
-                  <CircularProgress />
-                </Box>
-              ) : daily ? (
-                <Stack spacing={2}>
-                  <Typography textAlign="center" fontWeight={700}>
-                    {new Date(`${daily.date}T00:00:00`).toLocaleDateString([], {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </Typography>
-                  <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
-                    <StatPill label="Advances" value={daily.advances} color="#22c55e" />
-                    <StatPill label="Declines" value={daily.declines} color="#ef4444" />
-                    <StatPill label="Unchanged" value={daily.unchanged} color="#0f172a" />
+              <Stack spacing={2}>
+                {loadingDaily ? (
+                  <Box display="flex" alignItems="center" justifyContent="center" py={2}>
+                    <CircularProgress />
                   </Box>
+                ) : daily ? (
+                  <Stack spacing={2}>
+                    <Typography textAlign="center" fontWeight={700}>
+                      {new Date(`${daily.date}T00:00:00`).toLocaleDateString([], {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Typography>
+                    <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
+                      <StatPill label="Advances" value={daily.advances} color="#22c55e" />
+                      <StatPill label="Declines" value={daily.declines} color="#ef4444" />
+                      <StatPill label="Unchanged" value={daily.unchanged} color="#0f172a" />
+                    </Box>
+                    <Box
+                      sx={{
+                        border: '1px dashed #e5e7eb',
+                        borderRadius: 3,
+                        p: 2,
+                        bgcolor: '#f9fafb',
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        Range
+                      </Typography>
+                      <Typography variant="h6" fontWeight={800}>
+                        {daily.indexCandle?.range !== null && daily.indexCandle?.range !== undefined
+                          ? `${daily.indexCandle.range.toFixed(2)} pts`
+                          : '—'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Net Change
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        fontWeight={800}
+                        color={
+                          daily.indexCandle?.netChange !== null && daily.indexCandle?.netChange !== undefined
+                            ? daily.indexCandle.netChange > 0
+                              ? '#22c55e'
+                              : '#ef4444'
+                            : '#0f172a'
+                        }
+                      >
+                        {formatChange(daily.indexCandle?.netChange)} pts
+                      </Typography>
+                    </Box>
+                  </Stack>
+                ) : (
+                  <Typography textAlign="center" color="text.secondary">
+                    Select a date to view breadth
+                  </Typography>
+                )}
+
+                <Box
+                  sx={{
+                    borderTop: '1px solid #e5e7eb',
+                    pt: 2,
+                    mt: 1,
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ letterSpacing: 0.5, mb: 1 }}>
+                    Streaming (last 60 sessions)
+                  </Typography>
+                  {streamError && (
+                    <Alert severity="warning" sx={{ mb: 1 }}>
+                      {streamError}
+                    </Alert>
+                  )}
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                    {streaming && <CircularProgress size={14} />}
+                    <Typography variant="body2" color="text.secondary">
+                      {streaming
+                        ? `Receiving ${streamedDaily.length}/${streamProgress.total || '…'}`
+                        : `Received ${streamedDaily.length} sessions`}
+                    </Typography>
+                  </Stack>
                   <Box
                     sx={{
-                      border: '1px dashed #e5e7eb',
-                      borderRadius: 3,
-                      p: 2,
-                      bgcolor: '#f9fafb',
+                      maxHeight: 260,
+                      overflow: 'auto',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 2,
+                      p: 1,
+                      bgcolor: '#f8fafc',
                     }}
                   >
-                    <Typography variant="body2" color="text.secondary">
-                      Range
-                    </Typography>
-                    <Typography variant="h6" fontWeight={800}>
-                      {daily.indexCandle?.range !== null && daily.indexCandle?.range !== undefined
-                        ? `${daily.indexCandle.range.toFixed(2)} pts`
-                        : '—'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Net Change
-                    </Typography>
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                      color={
-                        daily.indexCandle?.netChange !== null && daily.indexCandle?.netChange !== undefined
-                          ? daily.indexCandle.netChange > 0
-                            ? '#22c55e'
-                            : '#ef4444'
-                          : '#0f172a'
-                      }
-                    >
-                      {formatChange(daily.indexCandle?.netChange)} pts
-                    </Typography>
+                    {streamedDaily.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Waiting for data…
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1}>
+                        {[...streamedDaily]
+                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                          .map((entry) => (
+                            <Box
+                              key={entry.date}
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: '1.2fr repeat(3, 0.8fr)',
+                                gap: 1,
+                                alignItems: 'center',
+                                p: 1,
+                                borderRadius: 1,
+                                bgcolor: '#fff',
+                                boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight={700}>
+                                {new Date(`${entry.date}T00:00:00`).toLocaleDateString([], {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: '#22c55e', fontWeight: 700 }}>
+                                A: {entry.advances}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: '#ef4444', fontWeight: 700 }}>
+                                D: {entry.declines}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                U: {entry.unchanged}
+                              </Typography>
+                            </Box>
+                          ))}
+                      </Stack>
+                    )}
                   </Box>
-                </Stack>
-              ) : (
-                <Typography textAlign="center" color="text.secondary">
-                  Select a date to view breadth
-                </Typography>
-              )}
+                </Box>
+              </Stack>
             </CardContent>
           </Card>
         </Box>
