@@ -13,7 +13,20 @@ const breadthCache = new Map(); // key => { expiresAt, data }
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const DEFAULT_CONCURRENCY = 6;
 
-const toDateOnly = (isoLike) => (isoLike || "").slice(0, 10);
+const IST_TIMEZONE = "Asia/Kolkata";
+const istDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: IST_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const toDateOnly = (value) => {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (!d || Number.isNaN(d.getTime())) return "";
+  return istDateFormatter.format(d);
+};
 
 const istStartOfDay = (dateStr) => new Date(`${dateStr}T00:00:00+05:30`);
 const istEndOfDay = (dateStr) => new Date(`${dateStr}T23:59:59+05:30`);
@@ -112,7 +125,12 @@ async function getTradingDaysForIndex({ indexKey, indexInfo, limit = 30, lookbac
   const kite = getKiteClient();
   const now = new Date();
   const from = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
-  const candles = await kite.getHistoricalData(indexInfo.indexToken, from, now, TF_MAP.day.kite);
+  let candles = [];
+  try {
+    candles = await kite.getHistoricalData(indexInfo.indexToken, from, now, TF_MAP.day.kite);
+  } catch (err) {
+    console.warn(`Falling back to synthetic trading days for ${indexKey}:`, err?.message || err);
+  }
 
   const days = Array.from(new Set(candles.map((c) => toDateOnly(c.date))))
     .filter(Boolean)
