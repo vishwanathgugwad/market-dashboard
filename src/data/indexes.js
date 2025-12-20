@@ -3,10 +3,12 @@ const nifty50 = require("./nifty50");
 module.exports = {
   nifty50: {
     name: "Nifty 50",
+    indexSymbol: "NIFTY 50",
     symbols: nifty50,
   },
   banknifty: {
     name: "Bank Nifty",
+    indexSymbol: "NIFTY BANK",
     symbols: [
       "AXISBANK",
       "HDFCBANK",
@@ -24,6 +26,7 @@ module.exports = {
   },
   finnifty: {
     name: "FinNifty",
+    indexSymbol: "NIFTY FIN SERVICE",
     symbols: [
       "AXISBANK",
       "BAJFINANCE",
@@ -54,6 +57,7 @@ module.exports = {
   },
   midcapnifty: {
     name: "Nifty Midcap (sample)",
+    indexSymbol: "NIFTY MID SELECT",
     symbols: [
       "ABBOTINDIA",
       "APOLLOTYRE",
@@ -84,6 +88,7 @@ module.exports = {
   },
   sensex: {
     name: "Sensex",
+    indexSymbol: "SENSEX",
     symbols: [
       "ASIANPAINT",
       "AXISBANK",
