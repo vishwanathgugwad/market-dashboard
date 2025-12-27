@@ -50,6 +50,29 @@ function buildSyntheticTradingDays(limit = 30) {
   return days;
 }
 
+function resolveTradingDate(days, requestedDate) {
+  if (!requestedDate) return requestedDate;
+  if (!Array.isArray(days) || !days.length) return requestedDate;
+  if (days.includes(requestedDate)) return requestedDate;
+
+  const target = new Date(requestedDate);
+  if (Number.isNaN(target.getTime())) return requestedDate;
+
+  const prior = days.find((day) => new Date(day) <= target);
+  return prior || requestedDate;
+}
+
+function findPreviousTradingDate(days, date) {
+  if (!Array.isArray(days) || !days.length || !date) return null;
+  const index = days.indexOf(date);
+  if (index !== -1) return days[index + 1] || null;
+  const target = new Date(date);
+  for (const day of days) {
+    if (new Date(day) < target) return day;
+  }
+  return null;
+}
+
 function cacheGet(key) {
   const entry = breadthCache.get(key);
   if (!entry) return null;
@@ -306,7 +329,17 @@ async function getIntradayBreadth({ indexKey, indexInfo, date, tf = "5m" }) {
 
 async function getHistoricalBreadth({ indexKey, indexInfo, date, tf = "5m", baseline = "prevClose" }) {
   const tfKey = normalizeTf(tf);
-  const cacheKey = `breadth:${indexKey}:${date}:${tfKey}:${baseline}`;
+  const tradingCalendar = await getTradingDaysForIndex({
+    indexKey,
+    indexInfo,
+    limit: 90,
+    lookbackDays: 180,
+  });
+  const tradingDays = tradingCalendar.days || [];
+  const resolvedDate = resolveTradingDate(tradingDays, date);
+  const prevTradingDate = findPreviousTradingDate(tradingDays, resolvedDate);
+
+  const cacheKey = `breadth:${indexKey}:${resolvedDate}:${tfKey}:${baseline}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
@@ -315,22 +348,26 @@ async function getHistoricalBreadth({ indexKey, indexInfo, date, tf = "5m", base
     tokens,
     DEFAULT_CONCURRENCY,
     async (token) => {
-      const candles = await fetchHistoricalCandles(token, date, tfKey);
-      const dailyCandles = candles.filter((c) => toDateOnly(c.date) === date);
+      const candles = await fetchHistoricalCandles(token, resolvedDate, tfKey);
+      const dailyCandles = candles
+        .filter((c) => toDateOnly(c.date) === resolvedDate)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
       if (!dailyCandles.length) return null;
 
-      let o;
-      let c;
+      let o = null;
+      let c = null;
 
       if (baseline === "open") {
+        const first = dailyCandles[0];
         const last = dailyCandles[dailyCandles.length - 1];
-        o = Number(last.open);
+        o = Number(first.open);
         c = Number(last.close);
       } else {
-        if (dailyCandles.length < 2) return null;
-        const prev = dailyCandles[dailyCandles.length - 2];
+        if (!prevTradingDate) return null;
+        const prevDaily = await fetchHistoricalCandles(token, prevTradingDate, "day");
+        const prevCandle = prevDaily.find((candle) => toDateOnly(candle.date) === prevTradingDate);
         const last = dailyCandles[dailyCandles.length - 1];
-        o = Number(prev.close);
+        o = Number(prevCandle?.close);
         c = Number(last.close);
       }
 
@@ -359,7 +396,7 @@ async function getHistoricalBreadth({ indexKey, indexInfo, date, tf = "5m", base
 
   const payload = {
     index: { key: indexKey, name: indexInfo.name },
-    date,
+    date: resolvedDate,
     tf: tfKey,
     baseline,
     adv,
