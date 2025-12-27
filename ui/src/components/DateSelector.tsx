@@ -1,4 +1,4 @@
-import { Box, ButtonBase, Grid, Stack, Typography } from '@mui/material';
+import { Box, Stack, TextField, Typography } from '@mui/material';
 
 interface DateSelectorProps {
   dates: string[];
@@ -28,52 +28,36 @@ const DateSelector = ({ dates, selectedDate, onSelect, loading }: DateSelectorPr
           bgcolor: '#ffffff',
           boxShadow: '0 12px 28px rgba(15, 23, 42, 0.06)',
           minWidth: 260,
+          width: '100%',
+          maxWidth: 360,
         }}
       >
-        {loading ? (
-          <Typography textAlign="center" color="text.secondary">
-            Loading dates...
-          </Typography>
-        ) : dates.length === 0 ? (
-          <Typography textAlign="center" color="text.secondary">
-            No trading days found
-          </Typography>
-        ) : (
-          <Grid container spacing={1}>
-            {dates.map((date) => {
-              const isActive = date === selectedDate;
-              const { weekday, monthDay } = formatLabel(date);
-              return (
-                <Grid item xs={4} sm={3} md={2} key={date}>
-                  <ButtonBase
-                    onClick={() => onSelect(date)}
-                    sx={{
-                      width: '100%',
-                      borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: isActive ? '#0f172a' : '#e5e7eb',
-                      bgcolor: isActive ? '#0f172a' : '#f9fafb',
-                      color: isActive ? '#ffffff' : '#0f172a',
-                      py: 1.25,
-                      px: 1,
-                      flexDirection: 'column',
-                      display: 'flex',
-                      gap: 0.5,
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <Typography variant="caption" sx={{ opacity: isActive ? 0.9 : 0.7, fontWeight: 600 }}>
-                      {weekday}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={800} letterSpacing={0.5}>
-                      {monthDay}
-                    </Typography>
-                  </ButtonBase>
-                </Grid>
-              );
-            })}
-          </Grid>
-        )}
+        <Stack spacing={1.5}>
+          {loading && (
+            <Typography textAlign="center" color="text.secondary">
+              Loading dates...
+            </Typography>
+          )}
+          {!loading && dates.length === 0 && (
+            <Typography textAlign="center" color="text.secondary">
+              No trading days found
+            </Typography>
+          )}
+          <TextField
+            label="Select date"
+            type="date"
+            value={selectedDate ?? ''}
+            onChange={(event) => onSelect(event.target.value)}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+            disabled={loading}
+          />
+          {selectedDate && (
+            <Typography textAlign="center" variant="body2" color="text.secondary">
+              {formatLabel(selectedDate).weekday}, {formatLabel(selectedDate).monthDay}
+            </Typography>
+          )}
+        </Stack>
       </Box>
     </Stack>
   );
