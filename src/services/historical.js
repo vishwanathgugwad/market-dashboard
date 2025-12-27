@@ -136,21 +136,28 @@ async function fetchHistoricalCandles(token, dateStr, tf) {
   return candles;
 }
 
-async function getTradingDaysForIndex({ indexKey, indexInfo, limit = 30, lookbackDays = 80 }) {
+async function getTradingDaysForIndex({
+  indexKey,
+  indexInfo,
+  limit = 30,
+  lookbackDays = 80,
+  anchorDate = null,
+}) {
   if (!indexInfo?.indexToken) {
     return { source: "synthetic", days: buildSyntheticTradingDays(limit) };
   }
 
-  const cacheKey = `trading-days:${indexKey}:${limit}`;
+  const anchorKey = anchorDate ? toDateOnly(anchorDate) : "latest";
+  const cacheKey = `trading-days:${indexKey}:${anchorKey}:${limit}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   const kite = getKiteClient();
-  const now = new Date();
-  const from = new Date(now.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
+  const to = anchorDate ? istEndOfDay(toDateOnly(anchorDate)) : new Date();
+  const from = new Date(to.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   let candles = [];
   try {
-    candles = await kite.getHistoricalData(indexInfo.indexToken, from, now, TF_MAP.day.kite);
+    candles = await kite.getHistoricalData(indexInfo.indexToken, from, to, TF_MAP.day.kite);
   } catch (err) {
     console.warn(`Falling back to synthetic trading days for ${indexKey}:`, err?.message || err);
   }
@@ -334,6 +341,7 @@ async function getHistoricalBreadth({ indexKey, indexInfo, date, tf = "5m", base
     indexInfo,
     limit: 90,
     lookbackDays: 180,
+    anchorDate: date,
   });
   const tradingDays = tradingCalendar.days || [];
   const resolvedDate = resolveTradingDate(tradingDays, date);
