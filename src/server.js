@@ -4,6 +4,7 @@ const {
   getDailyBreadth,
   getIntradayBreadth,
   getTradingDaysForIndex,
+  getHistoricalBreadth,
 } = require("./services/historical");
 
 function createServer({ stream, candleStore, indexTokens }) {
@@ -99,14 +100,36 @@ function createServer({ stream, candleStore, indexTokens }) {
   });
 
   // ✅ Breadth endpoint (adv/dec) - MUST be inside createServer
-  app.get("/index/:index/breadth", (req, res) => {
+  app.get("/index/:index/breadth", async (req, res) => {
     const tf = (req.query.tf || "5m").toLowerCase();
     const baseline = (req.query.baseline || "prevClose"); // "prevClose" or "open"
+    const date = req.query.date;
     const indexKey = (req.params.index || "").toLowerCase();
     const indexInfo = app.locals.indexTokens[indexKey];
 
     if (!indexInfo) {
       return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
+    }
+
+    if (date) {
+      const parsedDate = new Date(`${date}T00:00:00`);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ ok: false, message: "date must be in YYYY-MM-DD format" });
+      }
+
+      try {
+        const result = await getHistoricalBreadth({
+          indexKey,
+          indexInfo,
+          date,
+          tf,
+          baseline,
+        });
+        return res.json(result);
+      } catch (err) {
+        console.error("Failed to compute historical breadth", err);
+        return res.status(500).json({ ok: false, message: "Failed to compute historical breadth" });
+      }
     }
 
     const result = computeBreadth({
@@ -115,7 +138,7 @@ function createServer({ stream, candleStore, indexTokens }) {
       tf,
       baseline,
     });
-    res.json({
+    return res.json({
       index: { key: indexKey, name: indexInfo.name },
       ...result,
     });
