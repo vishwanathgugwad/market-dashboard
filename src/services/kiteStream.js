@@ -39,7 +39,7 @@ class KiteStream {
     return {
       connectedAt: this.connectedAt,
       lastTickAt: this.lastTickAt,
-      tokens: this.tokens,
+      tokenCount: this.tokens.length,
     };
   }
 }
