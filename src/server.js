@@ -19,6 +19,13 @@ function createServer({ stream, candleStore, indexTokens }) {
 
   // store tokens for routes
   app.locals.indexTokens = indexTokens || {};
+  app.locals.stream = stream || null;
+  app.locals.candleStore = candleStore || null;
+  app.locals.startup = {
+    ready: false,
+    error: null,
+    updatedAt: null,
+  };
 
   app.get("/health", (req, res) => {
     const indexSummary = Object.fromEntries(
@@ -29,12 +36,19 @@ function createServer({ stream, candleStore, indexTokens }) {
       }])
     );
 
+    const streamStatus = app.locals.stream?.status?.() || {
+      connectedAt: null,
+      lastTickAt: null,
+      tokenCount: 0,
+    };
+
     res.json({
-      ok: true,
+      ok: app.locals.startup.ready,
       service: "market-stream",
-      stream: stream.status(),
-      candles: candleStore?.stats?.(),
+      stream: streamStatus,
+      candles: app.locals.candleStore?.stats?.(),
       indexes: indexSummary,
+      startup: app.locals.startup,
       now: new Date(),
     });
   });
