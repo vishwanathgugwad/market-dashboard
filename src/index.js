@@ -5,6 +5,9 @@ const { loadInstruments } = require("./services/instruments");
 const { CandleStore } = require("./services/candles");
 const { buildIndexTokens } = require("./services/indexTokens");
 
+console.log("BOOT", __filename, "pid", process.pid);
+setInterval(() => console.log("tick", new Date().toISOString()), 1000);
+
 async function main() {
   const candleStore = new CandleStore({ maxPoints: 2000 });
   const app = createServer({ stream: null, candleStore, indexTokens: {} });
