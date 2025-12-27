@@ -25,6 +25,12 @@ const TIMEFRAMES = [
   { key: '1h', label: '1 HOUR' },
 ];
 
+const getTodayDate = () => {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
+
 const formatChange = (value?: number | null) => {
   if (value === undefined || value === null) return '—';
   const fixed = value.toFixed(2);
@@ -41,7 +47,7 @@ const formatWindow = (start: string, end: string) => {
 const HistoricalDataPage = () => {
   const [selectedIndex, setSelectedIndex] = useState<string>(INDEX_OPTIONS[0].key);
   const [tradingDays, setTradingDays] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
   const [daily, setDaily] = useState<DailyBreadthResponse | null>(null);
   const [intraday, setIntraday] = useState<Record<string, IntradayBreadthResponse | null>>({});
   const [loadingDays, setLoadingDays] = useState<boolean>(false);
@@ -61,10 +67,10 @@ const HistoricalDataPage = () => {
       try {
         const response = await getTradingDays(selectedIndex, 30);
         setTradingDays(response.days);
-        setSelectedDate(response.days[0] || '');
+        setSelectedDate((prev) => prev || response.days[0] || '');
       } catch (err) {
         setTradingDays([]);
-        setSelectedDate('');
+        setSelectedDate((prev) => prev || '');
         setError('Unable to load trading dates.');
       } finally {
         setLoadingDays(false);
