@@ -304,8 +304,79 @@ async function getIntradayBreadth({ indexKey, indexInfo, date, tf = "5m" }) {
   return payload;
 }
 
+async function getHistoricalBreadth({ indexKey, indexInfo, date, tf = "5m", baseline = "prevClose" }) {
+  const tfKey = normalizeTf(tf);
+  const cacheKey = `breadth:${indexKey}:${date}:${tfKey}:${baseline}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const tokens = indexInfo.tokens || [];
+  const results = await runWithLimit(
+    tokens,
+    DEFAULT_CONCURRENCY,
+    async (token) => {
+      const candles = await fetchHistoricalCandles(token, date, tfKey);
+      const dailyCandles = candles.filter((c) => toDateOnly(c.date) === date);
+      if (!dailyCandles.length) return null;
+
+      let o;
+      let c;
+
+      if (baseline === "open") {
+        const last = dailyCandles[dailyCandles.length - 1];
+        o = Number(last.open);
+        c = Number(last.close);
+      } else {
+        if (dailyCandles.length < 2) return null;
+        const prev = dailyCandles[dailyCandles.length - 2];
+        const last = dailyCandles[dailyCandles.length - 1];
+        o = Number(prev.close);
+        c = Number(last.close);
+      }
+
+      if (!Number.isFinite(o) || !Number.isFinite(c) || o === 0) return null;
+
+      const diff = c - o;
+      const pct = (diff / o) * 100;
+      return { token, diff, pct, o, c };
+    }
+  );
+
+  let adv = 0;
+  let dec = 0;
+  let unch = 0;
+  const movers = [];
+
+  for (const entry of results) {
+    if (!entry) continue;
+    if (entry.diff > 0) adv++;
+    else if (entry.diff < 0) dec++;
+    else unch++;
+    movers.push({ token: Number(entry.token), pct: entry.pct, o: entry.o, c: entry.c });
+  }
+
+  movers.sort((a, b) => b.pct - a.pct);
+
+  const payload = {
+    index: { key: indexKey, name: indexInfo.name },
+    date,
+    tf: tfKey,
+    baseline,
+    adv,
+    dec,
+    unch,
+    total: adv + dec + unch,
+    topGainers: movers.slice(0, 5),
+    topLosers: movers.slice(-5).reverse(),
+  };
+
+  cacheSet(cacheKey, payload);
+  return payload;
+}
+
 module.exports = {
   getTradingDaysForIndex,
   getDailyBreadth,
   getIntradayBreadth,
+  getHistoricalBreadth,
 };
