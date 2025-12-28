@@ -1,5 +1,6 @@
 const express = require("express");
 const { computeBreadth } = require("./services/breadth");
+const { getKiteClient } = require("./services/kiteClient");
 const {
   getDailyBreadth,
   getIntradayBreadth,
@@ -88,6 +89,41 @@ function createServer({ stream, candleStore, indexTokens }) {
         service: "market-stream",
         error: err?.message || String(err),
         now: new Date(),
+      });
+    }
+  });
+
+  app.get("/quote", async (req, res) => {
+    const queryValue = req.query.i;
+    if (!queryValue) {
+      return res.status(400).json({
+        ok: false,
+        message: "i query param is required (e.g. /quote?i=NSE:INFY)",
+      });
+    }
+
+    const instruments = (Array.isArray(queryValue) ? queryValue : [queryValue])
+      .flatMap((value) => String(value).split(","))
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (!instruments.length) {
+      return res.status(400).json({
+        ok: false,
+        message: "i query param must include at least one instrument",
+      });
+    }
+
+    try {
+      const kite = getKiteClient();
+      const data = await kite.getQuote(instruments);
+      return res.json({ ok: true, instruments, data });
+    } catch (err) {
+      console.error("Failed to fetch quote", err);
+      return res.status(502).json({
+        ok: false,
+        message: "Failed to fetch quote",
+        error: err?.message || String(err),
       });
     }
   });
