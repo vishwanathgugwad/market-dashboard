@@ -1,12 +1,6 @@
 const express = require("express");
-const { computeBreadth } = require("./services/breadth");
 const { getKiteClient } = require("./services/kiteClient");
-const {
-  getDailyBreadth,
-  getIntradayBreadth,
-  getTradingDaysForIndex,
-  getHistoricalBreadth,
-} = require("./services/historical");
+const { getTradingDaysForIndex } = require("./services/historical");
 
 function createServer({ stream, candleStore, indexTokens }) {
   const app = express();
@@ -38,10 +32,6 @@ function createServer({ stream, candleStore, indexTokens }) {
     updatedAt: null,
     lastError: null,
   };
-
-  app.get("/__ping", (req, res) => {
-    res.type("text/plain").send("pong");
-  });
 
   app.get("/health", (req, res) => {
     try {
@@ -128,58 +118,6 @@ function createServer({ stream, candleStore, indexTokens }) {
     }
   });
 
-  app.get("/candles/:token", (req, res) => {
-    const token = req.params.token;
-    const tf = (req.query.tf || "5m").toLowerCase();
-    const candles = candleStore.getCandles(token, tf);
-    res.json({ token: Number(token), tf, count: candles.length, candles });
-  });
-
-  // ✅ Breadth endpoint (adv/dec) - MUST be inside createServer
-  app.get("/index/:index/breadth", async (req, res) => {
-    const tf = (req.query.tf || "5m").toLowerCase();
-    const baseline = (req.query.baseline || "prevClose"); // "prevClose" or "open"
-    const date = req.query.date;
-    const indexKey = (req.params.index || "").toLowerCase();
-    const indexInfo = app.locals.indexTokens[indexKey];
-
-    if (!indexInfo) {
-      return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
-    }
-
-    if (date) {
-      const parsedDate = new Date(`${date}T00:00:00`);
-      if (Number.isNaN(parsedDate.getTime())) {
-        return res.status(400).json({ ok: false, message: "date must be in YYYY-MM-DD format" });
-      }
-
-      try {
-        const result = await getHistoricalBreadth({
-          indexKey,
-          indexInfo,
-          date,
-          tf,
-          baseline,
-        });
-        return res.json(result);
-      } catch (err) {
-        console.error("Failed to compute historical breadth", err);
-        return res.status(500).json({ ok: false, message: "Failed to compute historical breadth" });
-      }
-    }
-
-    const result = computeBreadth({
-      tokens: indexInfo.tokens,
-      candleStore,
-      tf,
-      baseline,
-    });
-    return res.json({
-      index: { key: indexKey, name: indexInfo.name },
-      ...result,
-    });
-  });
-
   // Historical data: list recent trading days
   app.get("/historical/trading-days", async (req, res) => {
     const indexKey = (req.query.index || "").toLowerCase();
@@ -199,103 +137,6 @@ function createServer({ stream, candleStore, indexTokens }) {
     } catch (err) {
       console.error("Failed to load trading days", err);
       res.status(500).json({ ok: false, message: "Failed to load trading days" });
-    }
-  });
-
-  // Historical daily breadth
-  app.get("/historical/:index/daily", async (req, res) => {
-    const indexKey = (req.params.index || "").toLowerCase();
-    const date = req.query.date;
-    const indexInfo = app.locals.indexTokens[indexKey];
-
-    if (!indexInfo) return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
-    if (!date) return res.status(400).json({ ok: false, message: "date query param is required" });
-
-    try {
-      const result = await getDailyBreadth({ indexKey, indexInfo, date });
-      res.json({ ok: true, ...result });
-    } catch (err) {
-      console.error("Failed to compute daily breadth", err);
-      res.status(500).json({ ok: false, message: "Failed to compute daily breadth" });
-    }
-  });
-
-  // Historical daily breadth stream (Server Sent Events)
-  app.get("/historical/:index/daily/stream", async (req, res) => {
-    const indexKey = (req.params.index || "").toLowerCase();
-    const days = Number(req.query.days) || 60;
-    const indexInfo = app.locals.indexTokens[indexKey];
-
-    if (!indexInfo) return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
-
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.flushHeaders?.();
-
-    let closed = false;
-    const send = (event, data) => {
-      if (closed) return;
-      res.write(`event: ${event}\n`);
-      res.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
-
-    const keepAlive = setInterval(() => send("ping", { at: new Date().toISOString() }), 15000);
-
-    req.on("close", () => {
-      closed = true;
-      clearInterval(keepAlive);
-    });
-
-    let tradingDays;
-    try {
-      const result = await getTradingDaysForIndex({ indexKey, indexInfo, limit: days });
-      tradingDays = result.days || [];
-      send("meta", { index: { key: indexKey, name: indexInfo.name }, totalDays: tradingDays.length });
-    } catch (err) {
-      send("error", { message: "Failed to load trading days" });
-      clearInterval(keepAlive);
-      return res.end();
-    }
-
-    const ordered = [...tradingDays].reverse(); // oldest to newest for sequential display
-    let emitted = 0;
-
-    for (const date of ordered) {
-      if (closed) break;
-      try {
-        const result = await getDailyBreadth({ indexKey, indexInfo, date });
-        emitted++;
-        send("data", result);
-      } catch (err) {
-        send("data-error", {
-          date,
-          message: err?.message || "Failed to compute daily breadth",
-        });
-      }
-    }
-
-    send("done", { count: emitted });
-    clearInterval(keepAlive);
-    res.end();
-  });
-
-  // Historical intraday breadth
-  app.get("/historical/:index/intraday", async (req, res) => {
-    const indexKey = (req.params.index || "").toLowerCase();
-    const date = req.query.date;
-    const tf = req.query.tf || "5m";
-    const indexInfo = app.locals.indexTokens[indexKey];
-
-    if (!indexInfo) return res.status(404).json({ ok: false, message: `Unknown index '${indexKey}'` });
-    if (!date) return res.status(400).json({ ok: false, message: "date query param is required" });
-
-    try {
-      const result = await getIntradayBreadth({ indexKey, indexInfo, date, tf });
-      res.json({ ok: true, ...result });
-    } catch (err) {
-      console.error("Failed to compute intraday breadth", err);
-      res.status(500).json({ ok: false, message: "Failed to compute intraday breadth" });
     }
   });
 
