@@ -169,6 +169,68 @@ async function getKiteInstrumentsCached() {
   return instrumentsCache.inflight;
 }
 
+async function getIndexInstrumentToken(indexName) {
+  const normalized = getSupportedIndexName(indexName);
+  const instruments = await getKiteInstrumentsCached();
+  const nseIndexName = INDEX_NAME_TO_NSE[normalized];
+
+  // Try to locate the index instrument in Kite instruments dump.
+  // Common patterns:
+  // - exchange: "NSE"
+  // - instrument_type: "INDEX" (sometimes)
+  // - segment: "INDICES" (sometimes)
+  // - name or tradingsymbol equals "NIFTY 50", "NIFTY BANK", etc.
+  const target = String(nseIndexName).toUpperCase();
+
+  let found = null;
+
+  for (const row of instruments) {
+    if (row.exchange !== "NSE") continue;
+
+    const instrumentType = String(row.instrument_type || "").toUpperCase();
+    const segment = String(row.segment || "").toUpperCase();
+
+    const looksLikeIndex = instrumentType === "INDEX" || segment === "INDICES";
+    if (!looksLikeIndex) continue;
+
+    const name = String(row.name || "").toUpperCase();
+    const ts = String(row.tradingsymbol || "").toUpperCase();
+
+    if (name === target || ts === target) {
+      found = row;
+      break;
+    }
+  }
+
+  // Fallback: some dumps might not label INDEX properly; match by name/ts only.
+  if (!found) {
+    for (const row of instruments) {
+      if (row.exchange !== "NSE") continue;
+      const name = String(row.name || "").toUpperCase();
+      const ts = String(row.tradingsymbol || "").toUpperCase();
+      if (name === target || ts === target) {
+        found = row;
+        break;
+      }
+    }
+  }
+
+  if (!found) {
+    throw new Error(
+      `Index instrument not found in Kite instruments dump for ${normalized} (${nseIndexName}).`
+    );
+  }
+
+  const token = Number(found.instrument_token);
+  if (!Number.isFinite(token)) {
+    throw new Error(
+      `Invalid instrument_token for ${normalized} (${nseIndexName}): ${found.instrument_token}`
+    );
+  }
+
+  return token;
+}
+
 async function getIndexConstituents(indexName) {
   // Kite Connect instruments dump excludes index membership, so we must pull
   // constituents from NSE (or another external source) before mapping.
@@ -218,4 +280,5 @@ module.exports = {
   fetchNseConstituents,
   getIndexConstituents,
   getKiteInstrumentsCached,
+  getIndexInstrumentToken
 };

@@ -2,6 +2,8 @@ const express = require("express");
 const { getKiteClient } = require("./services/kiteClient");
 const { getTradingDaysForIndex } = require("./services/historical");
 const { getAdvanceDecline, ValidationError } = require("./services/advanceDecline");
+const { getRedis } = require("./cache/redis");  
+const { buildBreadthKeys } = require("./cache/breadthKey");
 
 function createServer({ stream, candleStore, indexTokens }) {
   const app = express();
@@ -144,17 +146,78 @@ function createServer({ stream, candleStore, indexTokens }) {
   app.get("/api/breadth/:indexName", async (req, res) => {
     const { indexName } = req.params;
     const { date, fromTime, toTime, interval, concurrency } = req.query;
-
+  
+    // ✅ Requirement: parse concurrency as Number if present
+    const parsedConcurrency =
+      concurrency === undefined || concurrency === null || concurrency === ""
+        ? undefined
+        : Number(concurrency);
+  
+    // Defaults so cache key is stable even when UI omits them
+    const safeFromTime = fromTime || "09:15:00";
+    const safeToTime = toTime || "15:30:00";
+  
+    const { cacheKey, lockKey } = buildBreadthKeys({
+      indexName,
+      interval,
+      date,
+      fromTime: safeFromTime,
+      toTime: safeToTime,
+    });
+  
     try {
-      const data = await getAdvanceDecline({
-        indexName,
-        date,
-        fromTime,
-        toTime,
-        interval,
-        concurrency,
+      const redis = await getRedis();
+  
+      // 1) Cache hit
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        const data = JSON.parse(cached);
+        return res.json({ ...data, source: "redis_cache" });
+      }
+  
+      // 2) Acquire lock (single-flight)
+      const lockAcquired = await redis.set(lockKey, "1", { NX: true, EX: 30 });
+  
+      if (lockAcquired) {
+        try {
+          const data = await getAdvanceDecline({
+            indexName,
+            date,
+            fromTime: safeFromTime,
+            toTime: safeToTime,
+            interval,
+            concurrency: parsedConcurrency,
+          });
+  
+          // 15 min TTL
+          await redis.set(cacheKey, JSON.stringify(data), { EX: 900 });
+  
+          return res.json({ ...data, source: "computed" });
+        } finally {
+          // Always release lock
+          try {
+            await redis.del(lockKey);
+          } catch (_) {}
+        }
+      }
+  
+      // 3) Lock not acquired -> wait for cache
+      const attempts = 20;
+      const delayMs = 500;
+  
+      for (let i = 0; i < attempts; i++) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        const afterWait = await redis.get(cacheKey);
+        if (afterWait) {
+          const data = JSON.parse(afterWait);
+          return res.json({ ...data, source: "redis_cache_after_wait" });
+        }
+      }
+  
+      // 4) Still no cache
+      return res.status(202).json({
+        error: "Breadth is being computed. Please retry.",
       });
-      res.json(data);
     } catch (err) {
       if (err instanceof ValidationError) {
         return res.status(400).json({ error: err.message });
@@ -163,6 +226,7 @@ function createServer({ stream, candleStore, indexTokens }) {
       return res.status(500).json({ error: "Failed to load breadth" });
     }
   });
+  
 
   return app;
 }
