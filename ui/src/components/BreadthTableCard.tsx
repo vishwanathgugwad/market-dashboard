@@ -14,8 +14,8 @@ export interface BreadthRow {
   time: string;
   advances: number;
   declines: number;
-  range?: string;
-  net?: string;
+  range?: number | null;
+  net?: number | null;
 }
 
 interface BreadthTableCardProps {
@@ -24,6 +24,8 @@ interface BreadthTableCardProps {
   loading?: boolean;
   emptyText?: string;
 }
+
+const formatCellValue = (value?: number | null) => (value === null || value === undefined ? '—' : value);
 
 const BreadthTableCard = ({ title, rows, loading, emptyText = 'No data available' }: BreadthTableCardProps) => {
   return (
@@ -52,8 +54,8 @@ const BreadthTableCard = ({ title, rows, loading, emptyText = 'No data available
                 <TableCell sx={{ fontWeight: 700 }}>Time</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#22c55e' }}>Advances</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#ef4444' }}>Declines</TableCell>
-                {rows.some((r) => r.range !== undefined) && <TableCell sx={{ fontWeight: 700 }}>Range</TableCell>}
-                {rows.some((r) => r.net !== undefined) && <TableCell sx={{ fontWeight: 700 }}>Net</TableCell>}
+                <TableCell sx={{ fontWeight: 700 }}>Range</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Net</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -62,12 +64,8 @@ const BreadthTableCard = ({ title, rows, loading, emptyText = 'No data available
                   <TableCell sx={{ fontWeight: 600 }}>{row.time}</TableCell>
                   <TableCell sx={{ color: '#22c55e', fontWeight: 700 }}>{row.advances}</TableCell>
                   <TableCell sx={{ color: '#ef4444', fontWeight: 700 }}>{row.declines}</TableCell>
-                  {rows.some((r) => r.range !== undefined) && (
-                    <TableCell sx={{ fontWeight: 600 }}>{row.range ?? '-'}</TableCell>
-                  )}
-                  {rows.some((r) => r.net !== undefined) && (
-                    <TableCell sx={{ fontWeight: 600 }}>{row.net ?? '-'}</TableCell>
-                  )}
+                  <TableCell sx={{ fontWeight: 600 }}>{formatCellValue(row.range)}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{formatCellValue(row.net)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

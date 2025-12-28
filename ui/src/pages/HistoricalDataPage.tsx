@@ -9,54 +9,26 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
 import DateSelector from '../components/DateSelector';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
+import { fetchBreadth, BreadthResponse } from '../lib/api';
 import { getTradingDays } from '../services/historicalService';
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'nifty50', label: 'NIFTY 50' },
   { key: 'banknifty', label: 'NIFTY Bank' },
   { key: 'finnifty', label: 'FINNIFTY' },
-  { key: 'midcapnifty', label: 'MIDCPNIFTY' },
 ];
 
 const TIMEFRAME_OPTIONS = [
-  { key: '5m', label: '5 MIN' },
-  { key: '15m', label: '15 MIN' },
-  { key: '30m', label: '30 MIN' },
-  { key: '1h', label: '1 HOUR' },
-  { key: '1d', label: '1 DAY' },
+  { key: '5m', label: '5 MIN', interval: '5minute' },
+  { key: '15m', label: '15 MIN', interval: '15minute' },
+  { key: '1h', label: '1 HOUR', interval: '60minute' },
 ];
 
 const FALLBACK_DATES = ['2024-03-01', '2024-02-29', '2024-02-28', '2024-02-27'];
-
-const STATIC_DAILY = {
-  date: '2024-03-01',
-  advances: 32,
-  declines: 18,
-  unchanged: 0,
-  indexCandle: {
-    range: 142.35,
-    netChange: 86.4,
-  },
-};
-
-const STATIC_STREAM = [
-  { date: '2024-03-01', advances: 32, declines: 18, unchanged: 0 },
-  { date: '2024-02-29', advances: 28, declines: 22, unchanged: 0 },
-  { date: '2024-02-28', advances: 30, declines: 20, unchanged: 0 },
-  { date: '2024-02-27', advances: 25, declines: 25, unchanged: 0 },
-];
-
-const STATIC_INTRADAY_ROWS: BreadthRow[] = [
-  { time: '09:15-10:00', advances: 18, declines: 12, range: '+28.4', net: '+14.2' },
-  { time: '10:00-11:00', advances: 20, declines: 10, range: '+36.1', net: '+18.7' },
-  { time: '11:00-12:00', advances: 16, declines: 14, range: '+12.3', net: '+6.1' },
-  { time: '12:00-13:00', advances: 14, declines: 16, range: '-8.4', net: '-4.2' },
-  { time: '13:00-14:00', advances: 19, declines: 11, range: '+21.6', net: '+10.8' },
-];
 
 const formatDateInputValue = (date: Date) => {
   const year = date.getFullYear();
@@ -74,6 +46,9 @@ const formatDisplayDate = (value?: string) => {
   });
 };
 
+const formatPoints = (value: number | null | undefined) =>
+  value === null || value === undefined ? '—' : `${value.toFixed(2)} pts`;
+
 const HistoricalDataPage = () => {
   const todayDate = useMemo(() => formatDateInputValue(new Date()), []);
   const [selectedIndex, setSelectedIndex] = useState(INDEX_OPTIONS[0].key);
@@ -81,9 +56,24 @@ const HistoricalDataPage = () => {
   const [selectedDate, setSelectedDate] = useState(todayDate);
   const [availableDates, setAvailableDates] = useState<string[]>(FALLBACK_DATES);
   const [datesLoading, setDatesLoading] = useState(false);
-  const selectedTimeframeLabel =
-    TIMEFRAME_OPTIONS.find((tf) => tf.key === selectedTimeframe)?.label ?? selectedTimeframe;
-  const intradayRows = STATIC_INTRADAY_ROWS;
+  const [breadthData, setBreadthData] = useState<BreadthResponse | null>(null);
+  const [breadthLoading, setBreadthLoading] = useState(false);
+  const [breadthError, setBreadthError] = useState<string | null>(null);
+
+  const selectedTimeframeOption = TIMEFRAME_OPTIONS.find((tf) => tf.key === selectedTimeframe);
+  const selectedTimeframeLabel = selectedTimeframeOption?.label ?? selectedTimeframe;
+  const selectedInterval = selectedTimeframeOption?.interval ?? '5minute';
+
+  const intradayRows: BreadthRow[] = useMemo(() => {
+    if (!breadthData?.rows) return [];
+    return breadthData.rows.map((row) => ({
+      time: row.slot_label,
+      advances: row.green,
+      declines: row.red,
+      range: row.rangePts,
+      net: row.netPts,
+    }));
+  }, [breadthData]);
 
   useEffect(() => {
     let isActive = true;
@@ -116,6 +106,43 @@ const HistoricalDataPage = () => {
       isActive = false;
     };
   }, [selectedIndex]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadBreadth = async () => {
+      if (!selectedDate) return;
+      setBreadthLoading(true);
+      setBreadthError(null);
+      try {
+        const response = await fetchBreadth({
+          indexKey: selectedIndex,
+          date: selectedDate,
+          interval: selectedInterval,
+        });
+        if (isActive) {
+          setBreadthData(response);
+        }
+      } catch (error) {
+        if (isActive) {
+          setBreadthData(null);
+          setBreadthError(error instanceof Error ? error.message : 'Failed to load breadth data.');
+        }
+      } finally {
+        if (isActive) {
+          setBreadthLoading(false);
+        }
+      }
+    };
+
+    loadBreadth();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedIndex, selectedDate, selectedInterval]);
+
+  const daily = breadthData?.daily;
 
   return (
     <Stack spacing={3} alignItems="center">
@@ -158,12 +185,12 @@ const HistoricalDataPage = () => {
           >
             <FormControl fullWidth size="small">
               <InputLabel id="timeframe-select-label">Select timeframe</InputLabel>
-                <Select
-                  labelId="timeframe-select-label"
-                  label="Select timeframe"
-                  value={selectedTimeframe}
-                  onChange={(event) => setSelectedTimeframe(event.target.value)}
-                >
+              <Select
+                labelId="timeframe-select-label"
+                label="Select timeframe"
+                value={selectedTimeframe}
+                onChange={(event) => setSelectedTimeframe(event.target.value)}
+              >
                 {TIMEFRAME_OPTIONS.map((option) => (
                   <MenuItem key={option.key} value={option.key}>
                     {option.label}
@@ -196,32 +223,44 @@ const HistoricalDataPage = () => {
                   <Typography textAlign="center" fontWeight={700}>
                     {formatDisplayDate(selectedDate)}
                   </Typography>
-                  <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
-                    <StatPill label="Advances" value={STATIC_DAILY.advances} color="#22c55e" />
-                    <StatPill label="Declines" value={STATIC_DAILY.declines} color="#ef4444" />
-                    <StatPill label="Unchanged" value={STATIC_DAILY.unchanged} color="#0f172a" />
-                  </Box>
-                  <Box
-                    sx={{
-                      border: '1px dashed #e5e7eb',
-                      borderRadius: 3,
-                      p: 2,
-                      bgcolor: '#f9fafb',
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      Range
+                  {breadthLoading ? (
+                    <Typography textAlign="center" color="text.secondary" sx={{ py: 2 }}>
+                      Loading breadth data...
                     </Typography>
-                    <Typography variant="h6" fontWeight={800}>
-                      {STATIC_DAILY.indexCandle.range.toFixed(2)} pts
+                  ) : breadthError ? (
+                    <Typography textAlign="center" color="error" sx={{ py: 2 }}>
+                      {breadthError}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Net Change
-                    </Typography>
-                    <Typography variant="h6" fontWeight={800} color="#22c55e">
-                      +{STATIC_DAILY.indexCandle.netChange.toFixed(2)} pts
-                    </Typography>
-                  </Box>
+                  ) : (
+                    <>
+                      <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
+                        <StatPill label="Advances" value={daily?.advances ?? '—'} color="#22c55e" />
+                        <StatPill label="Declines" value={daily?.declines ?? '—'} color="#ef4444" />
+                        <StatPill label="Unchanged" value={daily?.unchanged ?? '—'} color="#0f172a" />
+                      </Box>
+                      <Box
+                        sx={{
+                          border: '1px dashed #e5e7eb',
+                          borderRadius: 3,
+                          p: 2,
+                          bgcolor: '#f9fafb',
+                        }}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          Range
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800}>
+                          {formatPoints(daily?.rangePts)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          Net Change
+                        </Typography>
+                        <Typography variant="h6" fontWeight={800} color="#22c55e">
+                          {formatPoints(daily?.netPts)}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
                 </Stack>
 
                 <Box
@@ -236,7 +275,7 @@ const HistoricalDataPage = () => {
                   </Typography>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                     <Typography variant="body2" color="text.secondary">
-                      Received {STATIC_STREAM.length} sessions
+                      Received 0 sessions
                     </Typography>
                   </Stack>
                   <Box
@@ -249,40 +288,9 @@ const HistoricalDataPage = () => {
                       bgcolor: '#f8fafc',
                     }}
                   >
-                    <Stack spacing={1}>
-                      {STATIC_STREAM.map((entry) => (
-                        <Box
-                          key={entry.date}
-                          sx={{
-                            display: 'grid',
-                            gridTemplateColumns: '1.2fr repeat(3, 0.8fr)',
-                            gap: 1,
-                            alignItems: 'center',
-                            p: 1,
-                            borderRadius: 1,
-                            bgcolor: '#fff',
-                            boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
-                          }}
-                        >
-                          <Typography variant="body2" fontWeight={700}>
-                            {new Date(`${entry.date}T00:00:00`).toLocaleDateString([], {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#22c55e', fontWeight: 700 }}>
-                            A: {entry.advances}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#ef4444', fontWeight: 700 }}>
-                            D: {entry.declines}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            U: {entry.unchanged}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
+                    <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
+                      No streaming data available.
+                    </Typography>
                   </Box>
                 </Box>
               </Stack>
@@ -294,7 +302,8 @@ const HistoricalDataPage = () => {
           <BreadthTableCard
             title={`${selectedTimeframeLabel} MARKET BREADTH`}
             rows={intradayRows}
-            loading={false}
+            loading={breadthLoading}
+            emptyText={breadthError ?? 'No data available'}
           />
         </Box>
       </Box>
@@ -302,7 +311,7 @@ const HistoricalDataPage = () => {
   );
 };
 
-const StatPill = ({ label, value, color }: { label: string; value: number; color: string }) => (
+const StatPill = ({ label, value, color }: { label: string; value: ReactNode; color: string }) => (
   <Box
     sx={{
       border: '1px solid #e5e7eb',
