@@ -1,4 +1,16 @@
-import { Alert, Box, Card, CardContent, CircularProgress, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Card,
+  CardContent,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
 import DateSelector from '../components/DateSelector';
@@ -19,10 +31,12 @@ const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'finnifty', label: 'NIFTYFINSERV' },
 ];
 
-const TIMEFRAMES = [
+const TIMEFRAME_OPTIONS = [
   { key: '5m', label: '5 MIN' },
   { key: '15m', label: '15 MIN' },
+  { key: '30m', label: '30 MIN' },
   { key: '1h', label: '1 HOUR' },
+  { key: '1d', label: '1 DAY' },
 ];
 
 const getTodayDate = () => {
@@ -46,6 +60,7 @@ const formatWindow = (start: string, end: string) => {
 
 const HistoricalDataPage = () => {
   const [selectedIndex, setSelectedIndex] = useState<string>(INDEX_OPTIONS[0].key);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>(TIMEFRAME_OPTIONS[0].key);
   const [tradingDays, setTradingDays] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
   const [daily, setDaily] = useState<DailyBreadthResponse | null>(null);
@@ -84,7 +99,6 @@ const HistoricalDataPage = () => {
     if (!selectedDate) return;
 
     setDaily(null);
-    setIntraday({});
 
     const loadDaily = async () => {
       setLoadingDaily(true);
@@ -99,32 +113,29 @@ const HistoricalDataPage = () => {
       }
     };
 
-    const loadIntradayAll = async () => {
-      for (const tf of TIMEFRAMES) {
-        setLoadingIntraday((prev) => ({ ...prev, [tf.key]: true }));
-      }
+    loadDaily();
+  }, [selectedIndex, selectedDate]);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    setIntraday((prev) => ({ ...prev, [selectedTimeframe]: null }));
+
+    const loadIntraday = async () => {
+      setLoadingIntraday((prev) => ({ ...prev, [selectedTimeframe]: true }));
 
       try {
-        const results = await Promise.all(
-          TIMEFRAMES.map((tf) =>
-            getIntradayBreadth(selectedIndex, selectedDate, tf.key).catch(() => null),
-          ),
-        );
-        const merged: Record<string, IntradayBreadthResponse | null> = {};
-        TIMEFRAMES.forEach((tf, idx) => {
-          merged[tf.key] = results[idx];
-        });
-        setIntraday(merged);
+        const response = await getIntradayBreadth(selectedIndex, selectedDate, selectedTimeframe);
+        setIntraday((prev) => ({ ...prev, [selectedTimeframe]: response }));
+      } catch (err) {
+        setIntraday((prev) => ({ ...prev, [selectedTimeframe]: null }));
       } finally {
-        for (const tf of TIMEFRAMES) {
-          setLoadingIntraday((prev) => ({ ...prev, [tf.key]: false }));
-        }
+        setLoadingIntraday((prev) => ({ ...prev, [selectedTimeframe]: false }));
       }
     };
 
-    loadDaily();
-    loadIntradayAll();
-  }, [selectedIndex, selectedDate]);
+    loadIntraday();
+  }, [selectedIndex, selectedDate, selectedTimeframe]);
 
   useEffect(() => {
     streamRef.current?.close();
@@ -163,25 +174,23 @@ const HistoricalDataPage = () => {
     setStreamProgress((prev) => ({ ...prev, received: streamedDaily.length }));
   }, [streamedDaily.length]);
 
-  const intradayRows = useMemo(() => {
-    const map: Record<string, BreadthRow[]> = {};
-    TIMEFRAMES.forEach((tf) => {
-      const data = intraday[tf.key];
-      if (!data) {
-        map[tf.key] = [];
-        return;
-      }
+  const selectedTimeframeLabel = useMemo(
+    () => TIMEFRAME_OPTIONS.find((tf) => tf.key === selectedTimeframe)?.label ?? selectedTimeframe,
+    [selectedTimeframe],
+  );
 
-      map[tf.key] = data.intervals.map((interval) => ({
-        time: formatWindow(interval.start, interval.end),
-        advances: interval.advances,
-        declines: interval.declines,
-        range: formatChange(interval.range),
-        net: formatChange(interval.net),
-      }));
-    });
-    return map;
-  }, [intraday]);
+  const intradayRows = useMemo(() => {
+    const data = intraday[selectedTimeframe];
+    if (!data) return [];
+
+    return data.intervals.map((interval) => ({
+      time: formatWindow(interval.start, interval.end),
+      advances: interval.advances,
+      declines: interval.declines,
+      range: formatChange(interval.range),
+      net: formatChange(interval.net),
+    }));
+  }, [intraday, selectedTimeframe]);
 
   return (
     <Stack spacing={3} alignItems="center">
@@ -198,12 +207,54 @@ const HistoricalDataPage = () => {
         </Alert>
       )}
 
-      <DateSelector
-        dates={tradingDays}
-        selectedDate={selectedDate}
-        onSelect={setSelectedDate}
-        loading={loadingDays}
-      />
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={3}
+        alignItems="center"
+        justifyContent="center"
+        width="100%"
+      >
+        <DateSelector
+          dates={tradingDays}
+          selectedDate={selectedDate}
+          onSelect={setSelectedDate}
+          loading={loadingDays}
+        />
+
+        <Stack spacing={1} alignItems="center">
+          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280' }}>
+            Timeframe
+          </Typography>
+          <Box
+            sx={{
+              border: '1px solid #e5e7eb',
+              borderRadius: 3,
+              p: 2,
+              bgcolor: '#ffffff',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.06)',
+              minWidth: 260,
+              width: '100%',
+              maxWidth: 360,
+            }}
+          >
+            <FormControl fullWidth size="small">
+              <InputLabel id="timeframe-select-label">Select timeframe</InputLabel>
+              <Select
+                labelId="timeframe-select-label"
+                label="Select timeframe"
+                value={selectedTimeframe}
+                onChange={(event) => setSelectedTimeframe(event.target.value)}
+              >
+                {TIMEFRAME_OPTIONS.map((option) => (
+                  <MenuItem key={option.key} value={option.key}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Stack>
+      </Stack>
 
       <Box
         display="grid"
@@ -362,29 +413,11 @@ const HistoricalDataPage = () => {
           </Card>
         </Box>
 
-        <Box gridColumn={{ xs: 'span 12', md: 'span 5' }}>
+        <Box gridColumn={{ xs: 'span 12', md: 'span 8' }}>
           <BreadthTableCard
-            title="5 MIN MARKET BREADTH"
-            rows={intradayRows['5m'] || []}
-            loading={loadingIntraday['5m']}
-          />
-        </Box>
-
-        <Box
-          gridColumn={{ xs: 'span 12', md: 'span 3' }}
-          display="grid"
-          gridTemplateRows={{ xs: 'repeat(2, auto)', md: 'repeat(2, 1fr)' }}
-          gap={2}
-        >
-          <BreadthTableCard
-            title="15 MIN MARKET BREADTH"
-            rows={intradayRows['15m'] || []}
-            loading={loadingIntraday['15m']}
-          />
-          <BreadthTableCard
-            title="1 HOUR MARKET BREADTH"
-            rows={intradayRows['1h'] || []}
-            loading={loadingIntraday['1h']}
+            title={`${selectedTimeframeLabel} MARKET BREADTH`}
+            rows={intradayRows}
+            loading={loadingIntraday[selectedTimeframe]}
           />
         </Box>
       </Box>

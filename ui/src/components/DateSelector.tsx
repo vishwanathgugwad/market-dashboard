@@ -38,11 +38,6 @@ const DateSelector = ({ dates, selectedDate, onSelect, loading }: DateSelectorPr
               Loading dates...
             </Typography>
           )}
-          {!loading && dates.length === 0 && (
-            <Typography textAlign="center" color="text.secondary">
-              No trading days found
-            </Typography>
-          )}
           <TextField
             label="Select date"
             type="date"
