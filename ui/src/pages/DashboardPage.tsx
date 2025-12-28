@@ -11,11 +11,10 @@ import { getIndexSeries } from '../services/indexService';
 import { IndexSeriesPoint } from '../types/indices';
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
-  { key: 'NIFTY50', label: 'NIFTY50' },
-  { key: 'NIFTYBANK', label: 'NIFTYBANK' },
-  { key: 'SENSEX', label: 'SENSEX' },
-  { key: 'NIFTYMIDSELECT', label: 'NIFTYMIDCAP' },
-  { key: 'NIFTYFINSERV', label: 'NIFTYFINSERV' },
+  { key: 'NIFTY50', label: 'NIFTY 50' },
+  { key: 'NIFTYBANK', label: 'NIFTY Bank' },
+  { key: 'FINNIFTY', label: 'FINNIFTY' },
+  { key: 'MIDCPNIFTY', label: 'MIDCPNIFTY' },
 ];
 
 const contributors = [

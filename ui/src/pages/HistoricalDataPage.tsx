@@ -24,11 +24,10 @@ import {
 import { DailyBreadthResponse, IntradayBreadthResponse } from '../types/historical';
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
-  { key: 'nifty50', label: 'NIFTY50' },
-  { key: 'banknifty', label: 'NIFTYBANK' },
-  { key: 'sensex', label: 'SENSEX' },
-  { key: 'midcapnifty', label: 'NIFTYMIDCAP' },
-  { key: 'finnifty', label: 'NIFTYFINSERV' },
+  { key: 'nifty50', label: 'NIFTY 50' },
+  { key: 'banknifty', label: 'NIFTY Bank' },
+  { key: 'finnifty', label: 'FINNIFTY' },
+  { key: 'midcapnifty', label: 'MIDCPNIFTY' },
 ];
 
 const TIMEFRAME_OPTIONS = [
