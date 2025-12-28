@@ -9,9 +9,11 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
 import DateSelector from '../components/DateSelector';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
+import { getTradingDays } from '../services/historicalService';
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'nifty50', label: 'NIFTY 50' },
@@ -28,7 +30,7 @@ const TIMEFRAME_OPTIONS = [
   { key: '1d', label: '1 DAY' },
 ];
 
-const STATIC_DATES = ['2024-03-01', '2024-02-29', '2024-02-28', '2024-02-27'];
+const FALLBACK_DATES = ['2024-03-01', '2024-02-29', '2024-02-28', '2024-02-27'];
 
 const STATIC_DAILY = {
   date: '2024-03-01',
@@ -56,13 +58,64 @@ const STATIC_INTRADAY_ROWS: BreadthRow[] = [
   { time: '13:00-14:00', advances: 19, declines: 11, range: '+21.6', net: '+10.8' },
 ];
 
+const formatDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatDisplayDate = (value?: string) => {
+  if (!value) return '--';
+  return new Date(`${value}T00:00:00`).toLocaleDateString([], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
 const HistoricalDataPage = () => {
-  const selectedIndex = INDEX_OPTIONS[0].key;
-  const selectedTimeframe = TIMEFRAME_OPTIONS[0].key;
-  const selectedDate = STATIC_DATES[0];
+  const todayDate = useMemo(() => formatDateInputValue(new Date()), []);
+  const [selectedIndex, setSelectedIndex] = useState(INDEX_OPTIONS[0].key);
+  const [selectedTimeframe, setSelectedTimeframe] = useState(TIMEFRAME_OPTIONS[0].key);
+  const [selectedDate, setSelectedDate] = useState(todayDate);
+  const [availableDates, setAvailableDates] = useState<string[]>(FALLBACK_DATES);
+  const [datesLoading, setDatesLoading] = useState(false);
   const selectedTimeframeLabel =
     TIMEFRAME_OPTIONS.find((tf) => tf.key === selectedTimeframe)?.label ?? selectedTimeframe;
   const intradayRows = STATIC_INTRADAY_ROWS;
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadDates = async () => {
+      setDatesLoading(true);
+      try {
+        const response = await getTradingDays(selectedIndex, 30);
+        if (!isActive) return;
+        if (response.days?.length) {
+          setAvailableDates(response.days);
+          if (!selectedDate) {
+            setSelectedDate(response.days[0]);
+          }
+        }
+      } catch (error) {
+        if (isActive) {
+          setAvailableDates(FALLBACK_DATES);
+        }
+      } finally {
+        if (isActive) {
+          setDatesLoading(false);
+        }
+      }
+    };
+
+    loadDates();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedIndex]);
 
   return (
     <Stack spacing={3} alignItems="center">
@@ -70,7 +123,7 @@ const HistoricalDataPage = () => {
         <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: 2 }}>
           Historical Data
         </Typography>
-        <SegmentedTabs options={INDEX_OPTIONS} value={selectedIndex} onChange={() => {}} />
+        <SegmentedTabs options={INDEX_OPTIONS} value={selectedIndex} onChange={setSelectedIndex} />
       </Stack>
 
       <Stack
@@ -81,10 +134,10 @@ const HistoricalDataPage = () => {
         width="100%"
       >
         <DateSelector
-          dates={STATIC_DATES}
+          dates={availableDates}
           selectedDate={selectedDate}
-          onSelect={() => {}}
-          loading={false}
+          onSelect={setSelectedDate}
+          loading={datesLoading}
         />
 
         <Stack spacing={1} alignItems="center">
@@ -109,7 +162,7 @@ const HistoricalDataPage = () => {
                   labelId="timeframe-select-label"
                   label="Select timeframe"
                   value={selectedTimeframe}
-                  onChange={() => {}}
+                  onChange={(event) => setSelectedTimeframe(event.target.value)}
                 >
                 {TIMEFRAME_OPTIONS.map((option) => (
                   <MenuItem key={option.key} value={option.key}>
@@ -141,11 +194,7 @@ const HistoricalDataPage = () => {
               <Stack spacing={2}>
                 <Stack spacing={2}>
                   <Typography textAlign="center" fontWeight={700}>
-                    {new Date(`${STATIC_DAILY.date}T00:00:00`).toLocaleDateString([], {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                    {formatDisplayDate(selectedDate)}
                   </Typography>
                   <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
                     <StatPill label="Advances" value={STATIC_DAILY.advances} color="#22c55e" />
