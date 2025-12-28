@@ -82,6 +82,31 @@ Returns:
 
 If your Kite instrument dump does not contain a ticker symbol, it will be excluded from the breadth counts. Use `findSimilarSymbols` helper in `src/services/indexTokens.js` to quickly get the updated name.
 
+### Market breadth (intraday window)
+```http
+GET /api/breadth/:indexName?date=YYYY-MM-DD&fromTime=HH:mm:ss&toTime=HH:mm:ss&interval=5minute
+```
+
+Supported `indexName` values: `NIFTY50`, `BANKNIFTY`, `FINNIFTY`.
+
+Example:
+```bash
+curl "http://localhost:3000/api/breadth/NIFTY50?date=2025-12-26&fromTime=09:15:00&toTime=09:20:00&interval=5minute"
+```
+
+Sample response (shortened):
+```json
+{
+  "indexName": "NIFTY50",
+  "interval": "5minute",
+  "window": { "date": "2025-12-26", "fromTime": "09:15:00", "toTime": "09:20:00" },
+  "summary": { "advances": 31, "declines": 17, "unchanged": 2, "no_data": 0, "errors": 0 },
+  "results": [
+    { "symbol": "RELIANCE", "status": "advance", "open": 100, "close": 101 }
+  ]
+}
+```
+
 ### Quick test URLs
 - Health: [`http://localhost:3000/health`](http://localhost:3000/health)
 - Candles for a token (replace `12345` with an instrument token): [`http://localhost:3000/candles/12345?tf=5m`](http://localhost:3000/candles/12345?tf=5m)

@@ -1,6 +1,7 @@
 const express = require("express");
 const { getKiteClient } = require("./services/kiteClient");
 const { getTradingDaysForIndex } = require("./services/historical");
+const { getAdvanceDecline, ValidationError } = require("./services/advanceDecline");
 
 function createServer({ stream, candleStore, indexTokens }) {
   const app = express();
@@ -137,6 +138,29 @@ function createServer({ stream, candleStore, indexTokens }) {
     } catch (err) {
       console.error("Failed to load trading days", err);
       res.status(500).json({ ok: false, message: "Failed to load trading days" });
+    }
+  });
+
+  app.get("/api/breadth/:indexName", async (req, res) => {
+    const { indexName } = req.params;
+    const { date, fromTime, toTime, interval, concurrency } = req.query;
+
+    try {
+      const data = await getAdvanceDecline({
+        indexName,
+        date,
+        fromTime,
+        toTime,
+        interval,
+        concurrency,
+      });
+      res.json(data);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        return res.status(400).json({ error: err.message });
+      }
+      console.error("Failed to load breadth", err);
+      return res.status(500).json({ error: "Failed to load breadth" });
     }
   });
 
