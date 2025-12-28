@@ -51,12 +51,4 @@ function buildIndexTokens(instruments) {
   };
 }
 
-function findSimilarSymbols(instruments, startsWith) {
-  return instruments
-    .filter((r) => r.exchange === "NSE" && r.instrument_type === "EQ")
-    .map((r) => r.tradingsymbol)
-    .filter((s) => s.startsWith(startsWith))
-    .slice(0, 20);
-}
-
-module.exports = { buildIndexTokens, findSimilarSymbols };
+module.exports = { buildIndexTokens };

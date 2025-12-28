@@ -9,7 +9,6 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "ws:test": "node src/ws-test.js",
     "dev": "npm run dev:ui",
     "dev:ui": "npm --workspace ui run dev -- --host",
     "dev:server": "nodemon src/index.js",

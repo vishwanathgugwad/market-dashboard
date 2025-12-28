@@ -1,17 +1,7 @@
 const { getKiteClient } = require("./kiteClient");
 
-const TF_MAP = {
-  "5m": { kite: "5minute", minutes: 5 },
-  "15m": { kite: "15minute", minutes: 15 },
-  "1h": { kite: "60minute", minutes: 60 },
-  day: { kite: "day", minutes: 24 * 60 },
-};
-
-const candleCache = new Map(); // key => candles
-const breadthCache = new Map(); // key => { expiresAt, data }
-
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const DEFAULT_CONCURRENCY = 6;
+const DAY_TIMEFRAME = "day";
+const tradingDaysCache = new Map();
 
 const IST_TIMEZONE = "Asia/Kolkata";
 const istDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -28,7 +18,6 @@ const toDateOnly = (value) => {
   return istDateFormatter.format(d);
 };
 
-const istStartOfDay = (dateStr) => new Date(`${dateStr}T00:00:00+05:30`);
 const istEndOfDay = (dateStr) => new Date(`${dateStr}T23:59:59+05:30`);
 
 const isWeekend = (date) => {
@@ -50,90 +39,16 @@ function buildSyntheticTradingDays(limit = 30) {
   return days;
 }
 
-function resolveTradingDate(days, requestedDate) {
-  if (!requestedDate) return requestedDate;
-  if (!Array.isArray(days) || !days.length) return requestedDate;
-  if (days.includes(requestedDate)) return requestedDate;
-
-  const target = new Date(requestedDate);
-  if (Number.isNaN(target.getTime())) return requestedDate;
-
-  const prior = days.find((day) => new Date(day) <= target);
-  return prior || requestedDate;
-}
-
-function findPreviousTradingDate(days, date) {
-  if (!Array.isArray(days) || !days.length || !date) return null;
-  const index = days.indexOf(date);
-  if (index !== -1) return days[index + 1] || null;
-  const target = new Date(date);
-  for (const day of days) {
-    if (new Date(day) < target) return day;
-  }
-  return null;
-}
-
 function cacheGet(key) {
-  const entry = breadthCache.get(key);
+  const entry = tradingDaysCache.get(key);
   if (!entry) return null;
   if (entry.expiresAt && entry.expiresAt > Date.now()) return entry.data;
-  breadthCache.delete(key);
+  tradingDaysCache.delete(key);
   return null;
 }
 
-function cacheSet(key, data, ttlMs = CACHE_TTL_MS) {
-  breadthCache.set(key, { data, expiresAt: Date.now() + ttlMs });
-}
-
-function normalizeTf(tf) {
-  const v = (tf || "").toLowerCase();
-  if (v === "5minute" || v === "5m") return "5m";
-  if (v === "15minute" || v === "15m") return "15m";
-  if (v === "60minute" || v === "60m" || v === "1h" || v === "1hr") return "1h";
-  if (v === "day" || v === "1d") return "day";
-  return "5m";
-}
-
-async function runWithLimit(items, limit, worker) {
-  const results = [];
-  let index = 0;
-
-  async function runner() {
-    while (index < items.length) {
-      const current = index++;
-      try {
-        results[current] = await worker(items[current], current);
-      } catch (err) {
-        results[current] = null;
-      }
-    }
-  }
-
-  const workers = Array(Math.min(limit, items.length))
-    .fill(0)
-    .map(() => runner());
-
-  await Promise.all(workers);
-  return results;
-}
-
-async function fetchHistoricalCandles(token, dateStr, tf) {
-  const tfKey = normalizeTf(tf);
-  const mapping = TF_MAP[tfKey];
-  if (!mapping) throw new Error(`Unsupported timeframe '${tf}'`);
-
-  const cacheKey = `${token}:${dateStr}:${tfKey}`;
-  if (candleCache.has(cacheKey)) {
-    return candleCache.get(cacheKey);
-  }
-
-  const kite = getKiteClient();
-  const from = istStartOfDay(dateStr);
-  const to = istEndOfDay(dateStr);
-  const candles = await kite.getHistoricalData(token, from, to, mapping.kite);
-
-  candleCache.set(cacheKey, candles);
-  return candles;
+function cacheSet(key, data, ttlMs) {
+  tradingDaysCache.set(key, { data, expiresAt: Date.now() + ttlMs });
 }
 
 async function getTradingDaysForIndex({
@@ -157,7 +72,7 @@ async function getTradingDaysForIndex({
   const from = new Date(to.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
   let candles = [];
   try {
-    candles = await kite.getHistoricalData(indexInfo.indexToken, from, to, TF_MAP.day.kite);
+    candles = await kite.getHistoricalData(indexInfo.indexToken, from, to, DAY_TIMEFRAME);
   } catch (err) {
     console.warn(`Falling back to synthetic trading days for ${indexKey}:`, err?.message || err);
   }
@@ -172,256 +87,10 @@ async function getTradingDaysForIndex({
     days: days.length ? days : buildSyntheticTradingDays(limit),
   };
 
-  cacheSet(cacheKey, payload, 30 * 60 * 1000); // 30 minutes for calendar
-  return payload;
-}
-
-async function getDailyBreadth({ indexKey, indexInfo, date }) {
-  const cacheKey = `daily:${indexKey}:${date}`;
-  const cached = cacheGet(cacheKey);
-  if (cached) return cached;
-
-  const tokens = indexInfo.tokens || [];
-  const results = await runWithLimit(
-    tokens,
-    DEFAULT_CONCURRENCY,
-    async (token) => {
-      const candles = await fetchHistoricalCandles(token, date, "day");
-      const candle = candles.find((c) => toDateOnly(c.date) === date);
-      if (!candle) return null;
-
-      const open = Number(candle.open);
-      const close = Number(candle.close);
-      if (!Number.isFinite(open) || !Number.isFinite(close)) return null;
-
-      const diff = close - open;
-      return {
-        token,
-        diff,
-        candle,
-      };
-    }
-  );
-
-  let advances = 0;
-  let declines = 0;
-  let unchanged = 0;
-
-  for (const entry of results) {
-    if (!entry) continue;
-    if (entry.diff > 0) advances++;
-    else if (entry.diff < 0) declines++;
-    else unchanged++;
-  }
-
-  let indexCandle = null;
-  if (indexInfo.indexToken) {
-    try {
-      const candles = await fetchHistoricalCandles(indexInfo.indexToken, date, "day");
-      const candle = candles.find((c) => toDateOnly(c.date) === date);
-      if (candle) {
-        const open = Number(candle.open);
-        const close = Number(candle.close);
-        const high = Number(candle.high);
-        const low = Number(candle.low);
-
-        indexCandle = {
-          open,
-          close,
-          high,
-          low,
-          range: Number.isFinite(high) && Number.isFinite(low) ? high - low : null,
-          netChange: Number.isFinite(open) && Number.isFinite(close) ? close - open : null,
-        };
-      }
-    } catch (err) {
-      // best effort; keep breadth counts even if index candle fails
-    }
-  }
-
-  const payload = {
-    index: { key: indexKey, name: indexInfo.name },
-    date,
-    advances,
-    declines,
-    unchanged,
-    total: advances + declines + unchanged,
-    indexCandle,
-  };
-
-  cacheSet(cacheKey, payload);
-  return payload;
-}
-
-async function getIntradayBreadth({ indexKey, indexInfo, date, tf = "5m" }) {
-  const tfKey = normalizeTf(tf);
-  const cacheKey = `intraday:${indexKey}:${date}:${tfKey}`;
-  const cached = cacheGet(cacheKey);
-  if (cached) return cached;
-
-  const tokens = indexInfo.tokens || [];
-  const tfMeta = TF_MAP[tfKey];
-  const minutes = tfMeta?.minutes || 5;
-
-  const tokenCandles = await runWithLimit(
-    tokens,
-    DEFAULT_CONCURRENCY,
-    async (token) => {
-      const candles = await fetchHistoricalCandles(token, date, tfKey);
-      return { token, candles };
-    }
-  );
-
-  const buckets = new Map(); // startISO -> stats
-
-  for (const entry of tokenCandles) {
-    if (!entry?.candles) continue;
-    for (const candle of entry.candles) {
-      if (toDateOnly(candle.date) !== date) continue;
-
-      const start = new Date(candle.date);
-      const startISO = start.toISOString();
-      const key = startISO;
-
-      if (!buckets.has(key)) {
-        buckets.set(key, {
-          start: startISO,
-          advances: 0,
-          declines: 0,
-          unchanged: 0,
-          net: 0,
-          range: 0,
-        });
-      }
-
-      const bucket = buckets.get(key);
-      const open = Number(candle.open);
-      const close = Number(candle.close);
-      const high = Number(candle.high);
-      const low = Number(candle.low);
-      if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
-
-      const diff = close - open;
-      if (diff > 0) bucket.advances++;
-      else if (diff < 0) bucket.declines++;
-      else bucket.unchanged++;
-
-      bucket.net += Number.isFinite(diff) ? diff : 0;
-      if (Number.isFinite(high) && Number.isFinite(low)) {
-        bucket.range += high - low;
-      }
-    }
-  }
-
-  const intervals = Array.from(buckets.values()).sort(
-    (a, b) => new Date(a.start) - new Date(b.start)
-  );
-
-  // attach end times for convenience
-  for (const interval of intervals) {
-    const start = new Date(interval.start);
-    interval.end = new Date(start.getTime() + minutes * 60 * 1000).toISOString();
-  }
-
-  const payload = {
-    index: { key: indexKey, name: indexInfo.name },
-    date,
-    tf: tfKey,
-    intervals,
-  };
-
-  cacheSet(cacheKey, payload);
-  return payload;
-}
-
-async function getHistoricalBreadth({ indexKey, indexInfo, date, tf = "5m", baseline = "prevClose" }) {
-  const tfKey = normalizeTf(tf);
-  const tradingCalendar = await getTradingDaysForIndex({
-    indexKey,
-    indexInfo,
-    limit: 90,
-    lookbackDays: 180,
-    anchorDate: date,
-  });
-  const tradingDays = tradingCalendar.days || [];
-  const resolvedDate = resolveTradingDate(tradingDays, date);
-  const prevTradingDate = findPreviousTradingDate(tradingDays, resolvedDate);
-
-  const cacheKey = `breadth:${indexKey}:${resolvedDate}:${tfKey}:${baseline}`;
-  const cached = cacheGet(cacheKey);
-  if (cached) return cached;
-
-  const tokens = indexInfo.tokens || [];
-  const results = await runWithLimit(
-    tokens,
-    DEFAULT_CONCURRENCY,
-    async (token) => {
-      const candles = await fetchHistoricalCandles(token, resolvedDate, tfKey);
-      const dailyCandles = candles
-        .filter((c) => toDateOnly(c.date) === resolvedDate)
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-      if (!dailyCandles.length) return null;
-
-      let o = null;
-      let c = null;
-
-      if (baseline === "open") {
-        const first = dailyCandles[0];
-        const last = dailyCandles[dailyCandles.length - 1];
-        o = Number(first.open);
-        c = Number(last.close);
-      } else {
-        if (!prevTradingDate) return null;
-        const prevDaily = await fetchHistoricalCandles(token, prevTradingDate, "day");
-        const prevCandle = prevDaily.find((candle) => toDateOnly(candle.date) === prevTradingDate);
-        const last = dailyCandles[dailyCandles.length - 1];
-        o = Number(prevCandle?.close);
-        c = Number(last.close);
-      }
-
-      if (!Number.isFinite(o) || !Number.isFinite(c) || o === 0) return null;
-
-      const diff = c - o;
-      const pct = (diff / o) * 100;
-      return { token, diff, pct, o, c };
-    }
-  );
-
-  let adv = 0;
-  let dec = 0;
-  let unch = 0;
-  const movers = [];
-
-  for (const entry of results) {
-    if (!entry) continue;
-    if (entry.diff > 0) adv++;
-    else if (entry.diff < 0) dec++;
-    else unch++;
-    movers.push({ token: Number(entry.token), pct: entry.pct, o: entry.o, c: entry.c });
-  }
-
-  movers.sort((a, b) => b.pct - a.pct);
-
-  const payload = {
-    index: { key: indexKey, name: indexInfo.name },
-    date: resolvedDate,
-    tf: tfKey,
-    baseline,
-    adv,
-    dec,
-    unch,
-    total: adv + dec + unch,
-    topGainers: movers.slice(0, 5),
-    topLosers: movers.slice(-5).reverse(),
-  };
-
-  cacheSet(cacheKey, payload);
+  cacheSet(cacheKey, payload, 30 * 60 * 1000);
   return payload;
 }
 
 module.exports = {
   getTradingDaysForIndex,
-  getDailyBreadth,
-  getIntradayBreadth,
-  getHistoricalBreadth,
 };

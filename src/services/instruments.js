@@ -27,7 +27,6 @@ function download(url, { timeoutMs = 15000 } = {}) {
   });
 }
 
-
 async function loadInstruments({ timeoutMs } = {}) {
   const url = "https://api.kite.trade/instruments";
   const csv = await download(url, { timeoutMs });
@@ -41,35 +40,4 @@ async function loadInstruments({ timeoutMs } = {}) {
   return records;
 }
 
-function findByName(instruments, namePart) {
-    const q = namePart.toLowerCase();
-    return instruments
-      .filter(r => (r.name || "").toLowerCase().includes(q))
-      .slice(0, 20)
-      .map(r => ({
-        exchange: r.exchange,
-        tradingsymbol: r.tradingsymbol,
-        name: r.name,
-        instrument_type: r.instrument_type,
-        segment: r.segment,
-        instrument_token: r.instrument_token
-      }));
-  }
-  
-  function findBySymbolContains(instruments, part) {
-    const q = part.toUpperCase();
-    return instruments
-      .filter(r => (r.tradingsymbol || "").toUpperCase().includes(q))
-      .slice(0, 20)
-      .map(r => ({
-        exchange: r.exchange,
-        tradingsymbol: r.tradingsymbol,
-        name: r.name,
-        instrument_type: r.instrument_type,
-        segment: r.segment,
-        instrument_token: r.instrument_token
-      }));
-  }
-  
-  module.exports = { loadInstruments, findByName, findBySymbolContains };
-  
+module.exports = { loadInstruments };
