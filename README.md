@@ -28,12 +28,7 @@ Designed to support **multiple indices** (Nifty 50, Bank Nifty, FinNifty, Midcap
    cp .env.example .env
    ```
    Fill in `KITE_API_KEY` and `KITE_ACCESS_TOKEN` with your Zerodha Kite credentials.
-3. (Optional) Start Redis for breadth caching:
-   ```bash
-   docker run --name market-dashboard-redis -p 6379:6379 -d redis:7-alpine
-   ```
-   Configure the connection with `REDIS_URL` (defaults to `redis://localhost:6379`).
-4. Start the backend:
+3. Start the backend:
    ```bash
    npm run dev:server
    ```
