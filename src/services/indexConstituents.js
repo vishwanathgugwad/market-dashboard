@@ -120,7 +120,6 @@ function buildNseHeaders({ referer, cookieHeader } = {}) {
     ...(cookieHeader ? { Cookie: cookieHeader } : {}),
   };
 }
-
 async function fetchNseConstituents(indexName) {
   const normalized = getSupportedIndexName(indexName);
   const cached = constituentsCache.get(normalized);
@@ -140,21 +139,26 @@ async function fetchNseConstituents(indexName) {
   const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(nseIndexName)}`;
   const referer = `https://www.nseindia.com/market-data/live-equity-market?symbol=${encodeURIComponent(nseIndexName)}`;
 
+  // NSE is slow/unreliable → allow longer end-to-end time
+  const TOTAL_TIMEOUT_MS = 35_000; // ✅ overall cap
+  const FETCH_TIMEOUT_MS = 25_000; // ✅ per attempt
+  const RETRIES = 3;               // ✅ more retries
+
   const inflight = (async () => {
     try {
       let cookieHeader = await getNseCookieHeader();
 
-      // ✅ hard timeout around the network call
-      let response = await withTimeout(
+      const doFetch = async () =>
         fetchJsonWithRetry(
           url,
           { headers: buildNseHeaders({ referer, cookieHeader }) },
-          { retries: 2, timeoutMs: 20000 }
-        ),
-        12000,
-        "NSE constituents timeout"
-      );
+          { retries: RETRIES, timeoutMs: FETCH_TIMEOUT_MS }
+        );
 
+      // ✅ hard timeout around the whole operation
+      let response = await withTimeout(doFetch(), TOTAL_TIMEOUT_MS, "NSE constituents timeout");
+
+      // cookie expired / blocked → refresh cookie once and retry
       if (response.status === 401 || response.status === 403) {
         nseCookieCache.cookie = null;
         cookieHeader = await getNseCookieHeader();
@@ -163,9 +167,9 @@ async function fetchNseConstituents(indexName) {
           fetchJsonWithRetry(
             url,
             { headers: buildNseHeaders({ referer, cookieHeader }) },
-            { retries: 2, timeoutMs: 20000 }
+            { retries: RETRIES, timeoutMs: FETCH_TIMEOUT_MS }
           ),
-          12000,
+          TOTAL_TIMEOUT_MS,
           "NSE constituents timeout"
         );
       }
@@ -177,6 +181,10 @@ async function fetchNseConstituents(indexName) {
       const payload = await response.json();
       const symbols = (payload?.data || []).map((row) => row.symbol).filter(Boolean);
 
+      if (!symbols.length) {
+        throw new Error("NSE returned empty constituents list");
+      }
+
       // ✅ store NEW symbols in cache
       constituentsCache.set(normalized, {
         data: symbols,
@@ -186,12 +194,23 @@ async function fetchNseConstituents(indexName) {
 
       return symbols;
     } catch (err) {
+      // ✅ clear inflight so next request can retry (important)
+      constituentsCache.set(normalized, {
+        data: cached?.data || null,
+        expiresAt: cached?.expiresAt || 0,
+        inflight: null,
+      });
+
       // ✅ fallback to stale data if available
-      const stale = cached?.data || constituentsCache.get(normalized)?.data;
+      const stale = cached?.data;
       if (stale && stale.length) {
-        console.warn(`NSE fetch failed for ${normalized}. Using stale constituents.`, err?.message || err);
+        console.warn(
+          `NSE fetch failed for ${normalized}. Using stale constituents.`,
+          err?.message || err
+        );
         return stale;
       }
+
       throw err;
     }
   })();
@@ -205,6 +224,7 @@ async function fetchNseConstituents(indexName) {
 
   return inflight;
 }
+
 
 
 async function getKiteInstrumentsCached() {
