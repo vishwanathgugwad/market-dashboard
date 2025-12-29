@@ -1,5 +1,5 @@
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import AppLayout from './layouts/AppLayout';
+import { Outlet } from 'react-router-dom';
 
 const theme = createTheme({
   palette: {
@@ -112,7 +112,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AppLayout />
+      <Outlet />
     </ThemeProvider>
   );
 }

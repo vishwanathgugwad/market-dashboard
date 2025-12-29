@@ -9,6 +9,7 @@ import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
 import LiveChatCard from '../components/LiveChatCard';
 import { getIndexSeries } from '../services/indexService';
 import { IndexSeriesPoint } from '../types/indices';
+import { isMarketOpen } from '../lib/marketTime';
 import {
   fetchLiveBreadth,
   fetchLiveContributors,
@@ -55,11 +56,6 @@ const fiveMinRows = [
   { time: '9:35-9:40', advances: 22, declines: 32, range: '-10 pts' },
   { time: '10:40-10:45', advances: 28, declines: 28, range: '0 pts' },
 ];
-
-const isMarketOpen = (date: Date) => {
-  const minutes = date.getHours() * 60 + date.getMinutes();
-  return minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30;
-};
 
 const DashboardPage = () => {
   const [selectedIndex, setSelectedIndex] = useState<string>(INDEX_OPTIONS[0].key);
