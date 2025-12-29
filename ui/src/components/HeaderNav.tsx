@@ -1,5 +1,7 @@
-import { Box, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { Box, Typography, useTheme } from '@mui/material';
 import { NavLink, useLocation } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 
 interface HeaderNavItem {
   label: string;
@@ -12,29 +14,36 @@ interface HeaderNavProps {
 
 const HeaderNav = ({ items }: HeaderNavProps) => {
   const { pathname } = useLocation();
+  const theme = useTheme();
 
   return (
     <Box
       component="header"
       sx={{
         px: { xs: 2, md: 4 },
-        py: { xs: 3, md: 4 },
-        borderBottom: '1px solid #E2E8F0',
+        py: { xs: 2.5, md: 3.5 },
+        borderBottom: '1px solid',
+        borderColor: 'divider',
         textAlign: 'center',
         position: 'sticky',
         top: 0,
-        backdropFilter: 'blur(6px)',
-        backgroundColor: 'rgba(248, 250, 252, 0.92)',
+        backdropFilter: 'blur(8px)',
+        backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.88 : 0.92),
         zIndex: 10,
       }}
     >
-      <Typography
-        variant="h5"
-        fontWeight={800}
-        sx={{ letterSpacing: 3, textTransform: 'uppercase', mb: 1, color: '#0F172A' }}
-      >
-        INDEXBREADTH
-      </Typography>
+      <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+        <Typography
+          variant="h5"
+          fontWeight={800}
+          sx={{ letterSpacing: 3, textTransform: 'uppercase', color: 'text.primary' }}
+        >
+          INDEXBREADTH
+        </Typography>
+        <Box sx={{ position: 'absolute', right: 0 }}>
+          <ThemeToggle />
+        </Box>
+      </Box>
       <Box display="flex" justifyContent="center" gap={{ xs: 3, md: 6 }} flexWrap="wrap">
         {items.map((item) => {
           const isActive = pathname === item.path;
@@ -45,7 +54,7 @@ const HeaderNav = ({ items }: HeaderNavProps) => {
                 fontWeight={isActive ? 800 : 600}
                 sx={{
                   letterSpacing: 1,
-                  color: '#0F172A',
+                  color: 'text.primary',
                   opacity: isActive ? 1 : 0.6,
                   transition: 'opacity 0.2s ease',
                 }}

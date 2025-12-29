@@ -1,4 +1,5 @@
-import { Box, Stack, TextField, Typography } from '@mui/material';
+import { Box, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 interface DateSelectorProps {
   dates: string[];
@@ -15,19 +16,22 @@ const formatLabel = (dateStr: string) => {
 };
 
 const DateSelector = ({ dates, selectedDate, onSelect, loading }: DateSelectorProps) => {
+  const theme = useTheme();
+
   return (
     <Stack spacing={1} alignItems="center">
-      <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B' }}>
+      <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
         Date Selector
       </Typography>
       <Box
         sx={{
-          border: '1px solid #E2E8F0',
+          border: '1px solid',
+          borderColor: 'divider',
           borderRadius: 999,
           px: 2,
           py: 1.5,
-          bgcolor: '#FFFFFF',
-          boxShadow: '0 10px 22px rgba(15, 23, 42, 0.06)',
+          bgcolor: 'background.paper',
+          boxShadow: theme.shadows[2],
           minWidth: 260,
           width: '100%',
           maxWidth: 360,
@@ -51,7 +55,7 @@ const DateSelector = ({ dates, selectedDate, onSelect, loading }: DateSelectorPr
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 999,
-                bgcolor: '#F8FAFC',
+                bgcolor: alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.35 : 1),
               },
             }}
           />

@@ -1,4 +1,4 @@
-import { Card, CardContent, Stack, Typography } from '@mui/material';
+import { Card, CardContent, Stack, Typography, useTheme } from '@mui/material';
 import { ReactNode } from 'react';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
@@ -19,13 +19,16 @@ const MetricCard = ({
   subtitle,
   value,
   valueSlot,
-  accentColor = '#0F172A',
+  accentColor,
   sparklineData,
-  sparklineColor = '#16A34A',
+  sparklineColor,
   align = 'center',
   children,
 }: MetricCardProps) => {
+  const theme = useTheme();
   const chartData = sparklineData?.map((val, idx) => ({ idx, value: val })) ?? [];
+  const resolvedAccent = accentColor ?? theme.palette.text.primary;
+  const resolvedSparkline = sparklineColor ?? theme.palette.success.main;
 
   return (
     <Card sx={{ height: '100%' }}>
@@ -37,7 +40,7 @@ const MetricCard = ({
         >
           <Typography
             variant="subtitle2"
-            sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B', width: '100%', textAlign: align }}
+            sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary', width: '100%', textAlign: align }}
           >
             {title}
           </Typography>
@@ -46,7 +49,7 @@ const MetricCard = ({
             <Typography
               variant="h4"
               fontWeight={800}
-              color={accentColor}
+              color={resolvedAccent}
               sx={{
                 width: '100%',
                 textAlign: align,
@@ -67,7 +70,7 @@ const MetricCard = ({
               sx={{
                 letterSpacing: 1,
                 textTransform: 'uppercase',
-                color: '#64748B',
+                color: 'text.secondary',
                 width: '100%',
                 textAlign: align,
               }}
@@ -76,7 +79,7 @@ const MetricCard = ({
             </Typography>
           )}
           {sparklineData && sparklineData.length > 0 && (
-            <BoxWithChart color={sparklineColor} data={chartData} />
+            <BoxWithChart color={resolvedSparkline} data={chartData} />
           )}
           {children}
         </Stack>
