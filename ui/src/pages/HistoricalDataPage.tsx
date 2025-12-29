@@ -147,9 +147,6 @@ const HistoricalDataPage = () => {
   return (
     <Stack spacing={3} alignItems="center">
       <Stack spacing={1} alignItems="center">
-        <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: 2 }}>
-          Historical Data
-        </Typography>
         <SegmentedTabs options={INDEX_OPTIONS} value={selectedIndex} onChange={setSelectedIndex} />
       </Stack>
 
