@@ -114,10 +114,20 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
     ]);
   }, [contextLabel]);
 
-  useEffect(() => {
+  const scrollToBottom = () => {
     if (!scrollContainerRef.current) return;
     scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+  };
+
+  useEffect(() => {
+    scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (isExpanded) {
+      scrollToBottom();
+    }
+  }, [isExpanded]);
 
   const handleSend = () => {
     const trimmed = input.trim();
@@ -154,8 +164,8 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
     setIsExpanded((prev) => !prev);
   };
 
-  const cardWidth = isExpanded ? 480 : 360;
-  const cardHeight = isMinimized ? 'auto' : isExpanded ? 640 : 520;
+  const cardWidth = isExpanded ? 440 : 320;
+  const cardHeight = isMinimized ? 'auto' : isExpanded ? 600 : 460;
 
   return (
     <Card
@@ -233,7 +243,7 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
               gap: 1,
               overflowY: 'auto',
               flex: 1,
-              minHeight: floating ? 240 : 360,
+              minHeight: floating ? 220 : 340,
             }}
           >
             {messages.map((message) => {
