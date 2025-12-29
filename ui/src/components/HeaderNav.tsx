@@ -1,6 +1,8 @@
 import { alpha } from '@mui/material/styles';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { isMarketOpen } from '../lib/marketTime';
 import ThemeToggle from './ThemeToggle';
 
 interface HeaderNavItem {
@@ -15,13 +17,30 @@ interface HeaderNavProps {
 const HeaderNav = ({ items }: HeaderNavProps) => {
   const { pathname } = useLocation();
   const theme = useTheme();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const marketOpen = useMemo(() => isMarketOpen(now), [now]);
+  const lastUpdated = useMemo(
+    () =>
+      now.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+    [now],
+  );
 
   return (
     <Box
       component="header"
       sx={{
         px: { xs: 2, md: 4 },
-        py: { xs: 2.5, md: 3.5 },
+        py: { xs: 2.5, md: 3 },
         borderBottom: '1px solid',
         borderColor: 'divider',
         textAlign: 'center',
@@ -32,19 +51,47 @@ const HeaderNav = ({ items }: HeaderNavProps) => {
         zIndex: 10,
       }}
     >
-      <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-        <Typography
-          variant="h5"
-          fontWeight={800}
-          sx={{ letterSpacing: 3, textTransform: 'uppercase', color: 'text.primary' }}
-        >
-          INDEXBREADTH
-        </Typography>
-        <Box sx={{ position: 'absolute', right: 0 }}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={{ xs: 1.5, md: 3 }}
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ position: 'relative' }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography
+            variant="h5"
+            fontWeight={800}
+            sx={{
+              letterSpacing: 6,
+              textTransform: 'uppercase',
+              color: 'text.primary',
+              fontSize: { xs: '1.1rem', md: '1.2rem' },
+            }}
+          >
+            INDEXBREADTH
+          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip
+              size="small"
+              label={marketOpen ? 'Market Open' : 'Market Closed'}
+              sx={{
+                color: marketOpen ? 'success.main' : 'text.secondary',
+                borderColor: marketOpen ? alpha(theme.palette.success.main, 0.35) : theme.palette.divider,
+                bgcolor: alpha(
+                  marketOpen ? theme.palette.success.main : theme.palette.background.paper,
+                  marketOpen ? 0.12 : 0.6,
+                ),
+              }}
+            />
+            <Chip size="small" label={`Last updated ${lastUpdated}`} />
+          </Stack>
+        </Stack>
+        <Box sx={{ position: { xs: 'static', md: 'absolute' }, right: 0, top: 0 }}>
           <ThemeToggle />
         </Box>
-      </Box>
-      <Box display="flex" justifyContent="center" gap={{ xs: 3, md: 6 }} flexWrap="wrap">
+      </Stack>
+      <Box display="flex" justifyContent="center" gap={{ xs: 2.5, md: 5 }} flexWrap="wrap" mt={{ xs: 2, md: 1.5 }}>
         {items.map((item) => {
           const isActive = pathname === item.path;
           return (

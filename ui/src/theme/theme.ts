@@ -30,7 +30,7 @@ export const getTheme = (mode: ThemeMode) => {
         main: isDark ? '#A5B4FC' : '#0F172A',
       },
       success: {
-        main: isDark ? '#4ADE80' : '#16A34A',
+        main: isDark ? '#34D399' : '#16A34A',
       },
       error: {
         main: isDark ? '#F87171' : '#DC2626',
@@ -40,7 +40,7 @@ export const getTheme = (mode: ThemeMode) => {
       },
       background: {
         default: isDark ? '#0B1220' : '#F8FAFC',
-        paper: isDark ? '#111827' : '#FFFFFF',
+        paper: isDark ? '#0F172A' : '#FFFFFF',
       },
       text: {
         primary: isDark ? '#E2E8F0' : '#0F172A',
@@ -49,7 +49,7 @@ export const getTheme = (mode: ThemeMode) => {
       divider: isDark ? 'rgba(148, 163, 184, 0.2)' : '#E2E8F0',
     },
     shape: {
-      borderRadius: 16,
+      borderRadius: 18,
     },
     components: {
       MuiCard: {
@@ -57,10 +57,28 @@ export const getTheme = (mode: ThemeMode) => {
           root: ({ theme }) => ({
             backgroundColor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,
+            borderRadius: theme.shape.borderRadius + 2,
             boxShadow: isDark
-              ? '0 18px 40px rgba(2, 6, 23, 0.55)'
-              : '0 10px 24px rgba(15, 23, 42, 0.06)',
+              ? '0 16px 40px rgba(2, 6, 23, 0.55)'
+              : '0 12px 28px rgba(15, 23, 42, 0.08)',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: isDark
+                ? '0 22px 48px rgba(2, 6, 23, 0.65)'
+                : '0 18px 36px rgba(15, 23, 42, 0.12)',
+            },
           }),
+        },
+      },
+      MuiCardContent: {
+        styleOverrides: {
+          root: {
+            padding: 24,
+            '&:last-child': {
+              paddingBottom: 24,
+            },
+          },
         },
       },
       MuiPaper: {
@@ -71,6 +89,20 @@ export const getTheme = (mode: ThemeMode) => {
           }),
         },
       },
+      MuiChip: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            borderRadius: 999,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            backgroundColor: alpha(theme.palette.background.paper, 0.9),
+            border: `1px solid ${theme.palette.divider}`,
+          }),
+          label: {
+            paddingInline: 10,
+          },
+        },
+      },
       MuiToggleButton: {
         styleOverrides: {
           root: ({ theme }) => ({
@@ -78,8 +110,8 @@ export const getTheme = (mode: ThemeMode) => {
             color: theme.palette.text.primary,
             textTransform: 'none',
             '&.Mui-selected': {
-              backgroundColor: theme.palette.primary.main,
-              color: theme.palette.primary.contrastText,
+              backgroundColor: alpha(theme.palette.primary.main, 0.16),
+              color: theme.palette.primary.main,
               borderColor: theme.palette.primary.main,
             },
           }),
@@ -90,6 +122,7 @@ export const getTheme = (mode: ThemeMode) => {
           root: {
             textTransform: 'none',
             fontWeight: 600,
+            borderRadius: 12,
           },
         },
       },
@@ -97,6 +130,7 @@ export const getTheme = (mode: ThemeMode) => {
         styleOverrides: {
           root: ({ theme }) => ({
             borderBottomColor: theme.palette.divider,
+            fontSize: 13,
           }),
         },
       },
@@ -126,6 +160,9 @@ export const getTheme = (mode: ThemeMode) => {
             backgroundColor: theme.palette.background.default,
             color: theme.palette.text.primary,
           },
+          '*': {
+            scrollbarColor: `${alpha(theme.palette.text.secondary, 0.6)} transparent`,
+          },
           '::-webkit-scrollbar': {
             width: 8,
           },
@@ -138,6 +175,16 @@ export const getTheme = (mode: ThemeMode) => {
     },
     typography: {
       fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+      h1: {
+        fontWeight: 700,
+        fontSize: '2.6rem',
+        letterSpacing: '-0.04em',
+      },
+      h2: {
+        fontWeight: 700,
+        fontSize: '2.1rem',
+        letterSpacing: '-0.03em',
+      },
       h4: {
         fontWeight: 700,
         letterSpacing: '-0.02em',
@@ -158,6 +205,7 @@ export const getTheme = (mode: ThemeMode) => {
       },
       caption: {
         fontWeight: 500,
+        letterSpacing: '0.02em',
       },
     },
   };

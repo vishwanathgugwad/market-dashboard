@@ -1,6 +1,7 @@
 import {
   Card,
   CardContent,
+  TableContainer,
   Table,
   TableBody,
   TableCell,
@@ -28,7 +29,7 @@ const MarketBreadthTable = ({ title, rows }: MarketBreadthTableProps) => {
 
   return (
     <Card>
-      <CardContent sx={{ p: 3 }}>
+      <CardContent>
         <Typography
           variant="subtitle2"
           textAlign="center"
@@ -41,53 +42,63 @@ const MarketBreadthTable = ({ title, rows }: MarketBreadthTableProps) => {
             No data available
           </Typography>
         ) : (
-          <Table size="small" sx={{ '& th, & td': { py: 1.4 } }}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Time</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: 'success.main' }}>Advances</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: 'error.main' }}>Declines</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Range</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((row, idx) => {
-                const dominant = row.advances === row.declines ? 'neutral' : row.advances > row.declines ? 'adv' : 'dec';
-                return (
-                  <TableRow
-                    key={row.time}
-                    hover
-                    sx={{
-                      bgcolor: idx % 2 === 0 ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
-                    }}
-                  >
-                    <TableCell>{row.time}</TableCell>
-                    <TableCell
+          <TableContainer sx={{ maxHeight: 280 }}>
+            <Table size="small" stickyHeader sx={{ '& th, & td': { py: 1.2 } }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, bgcolor: 'background.paper' }}>Time</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'success.main', bgcolor: 'background.paper' }}>Adv</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'error.main', bgcolor: 'background.paper' }}>Dec</TableCell>
+                  <TableCell sx={{ fontWeight: 700, bgcolor: 'background.paper' }}>Range</TableCell>
+                  <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' }, bgcolor: 'background.paper' }}>
+                    Adv–Dec
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((row, idx) => {
+                  const dominant = row.advances === row.declines ? 'neutral' : row.advances > row.declines ? 'adv' : 'dec';
+                  const diff = row.advances - row.declines;
+                  return (
+                    <TableRow
+                      key={row.time}
+                      hover
                       sx={{
-                        color: 'success.main',
-                        fontWeight: 700,
-                        bgcolor: dominant === 'adv' ? alpha(theme.palette.success.main, 0.12) : 'transparent',
-                        borderRadius: 1,
+                        bgcolor: idx % 2 === 0 ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
                       }}
                     >
-                      {row.advances}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        color: 'error.main',
-                        fontWeight: 700,
-                        bgcolor: dominant === 'dec' ? alpha(theme.palette.error.main, 0.12) : 'transparent',
-                        borderRadius: 1,
-                      }}
-                    >
-                      {row.declines}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{row.range}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      <TableCell sx={{ fontWeight: 600 }}>{row.time}</TableCell>
+                      <TableCell
+                        sx={{
+                          color: 'success.main',
+                          fontWeight: 700,
+                          bgcolor: dominant === 'adv' ? alpha(theme.palette.success.main, 0.12) : 'transparent',
+                          borderRadius: 1,
+                        }}
+                      >
+                        {row.advances}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: 'error.main',
+                          fontWeight: 700,
+                          bgcolor: dominant === 'dec' ? alpha(theme.palette.error.main, 0.12) : 'transparent',
+                          borderRadius: 1,
+                        }}
+                      >
+                        {row.declines}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>{row.range}</TableCell>
+                      <TableCell sx={{ fontWeight: 700, display: { xs: 'none', md: 'table-cell' } }}>
+                        {diff >= 0 ? '+' : ''}
+                        {diff}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
-import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { ReactNode, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
 import DateSelector from '../components/DateSelector';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
@@ -104,40 +104,36 @@ const HistoricalDataPage = () => {
     };
   }, [selectedIndex]);
 
+  const loadBreadth = useCallback(async () => {
+    if (!selectedDate) return;
+    setBreadthLoading(true);
+    setBreadthError(null);
+    try {
+      const response = await fetchBreadth({
+        indexKey: selectedIndex,
+        date: selectedDate,
+        interval: selectedInterval,
+      });
+      setBreadthData(response);
+    } catch (error) {
+      setBreadthData(null);
+      setBreadthError(error instanceof Error ? error.message : 'Failed to load breadth data.');
+    } finally {
+      setBreadthLoading(false);
+    }
+  }, [selectedDate, selectedIndex, selectedInterval]);
+
   useEffect(() => {
     let isActive = true;
-
-    const loadBreadth = async () => {
-      if (!selectedDate) return;
-      setBreadthLoading(true);
-      setBreadthError(null);
-      try {
-        const response = await fetchBreadth({
-          indexKey: selectedIndex,
-          date: selectedDate,
-          interval: selectedInterval,
-        });
-        if (isActive) {
-          setBreadthData(response);
-        }
-      } catch (error) {
-        if (isActive) {
-          setBreadthData(null);
-          setBreadthError(error instanceof Error ? error.message : 'Failed to load breadth data.');
-        }
-      } finally {
-        if (isActive) {
-          setBreadthLoading(false);
-        }
-      }
+    const load = async () => {
+      if (!isActive) return;
+      await loadBreadth();
     };
-
-    loadBreadth();
-
+    load();
     return () => {
       isActive = false;
     };
-  }, [selectedIndex, selectedDate, selectedInterval]);
+  }, [loadBreadth]);
 
   const daily = breadthData?.daily;
   const breadthErrorMessage = breadthError
@@ -148,20 +144,19 @@ const HistoricalDataPage = () => {
       title="Unable to load data"
       message={breadthErrorMessage}
       hint="Retry in a moment or switch the timeframe."
+      onRetry={loadBreadth}
     />
   ) : null;
 
   return (
     <Stack spacing={3} alignItems="center">
-      <Stack spacing={1} alignItems="center">
-        <SegmentedTabs options={INDEX_OPTIONS} value={selectedIndex} onChange={setSelectedIndex} />
-      </Stack>
+      <SegmentedTabs options={INDEX_OPTIONS} value={selectedIndex} onChange={setSelectedIndex} />
 
       <Stack
         direction={{ xs: 'column', md: 'row' }}
-        spacing={3}
-        alignItems="center"
-        justifyContent="center"
+        spacing={2}
+        alignItems={{ xs: 'stretch', md: 'center' }}
+        justifyContent="space-between"
         width="100%"
       >
         <DateSelector
@@ -171,13 +166,46 @@ const HistoricalDataPage = () => {
           loading={datesLoading}
         />
 
-        <Stack spacing={1} alignItems="center">
+        <Stack spacing={0.75} alignItems={{ xs: 'flex-start', md: 'center' }}>
           <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
             Timeframe
           </Typography>
           <SegmentedTabs options={timeframeTabs} value={selectedTimeframe} onChange={setSelectedTimeframe} />
         </Stack>
       </Stack>
+
+      <Card sx={{ width: '100%' }}>
+        <CardContent>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            justifyContent="space-between"
+          >
+            <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
+              Selected day summary
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {formatDisplayDate(selectedDate)}
+            </Typography>
+          </Stack>
+          {breadthLoading ? (
+            <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(5, 1fr)' }} gap={1.5} mt={2}>
+              {[0, 1, 2, 3, 4].map((idx) => (
+                <Skeleton key={idx} variant="rounded" height={64} />
+              ))}
+            </Box>
+          ) : (
+            <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(5, 1fr)' }} gap={1.5} mt={2}>
+              <SummaryPill label="Adv" value={daily?.advances ?? '—'} tone="positive" />
+              <SummaryPill label="Dec" value={daily?.declines ?? '—'} tone="negative" />
+              <SummaryPill label="Unch" value={daily?.unchanged ?? '—'} tone="neutral" />
+              <SummaryPill label="Range Pts" value={formatPoints(daily?.rangePts)} tone="neutral" />
+              <SummaryPill label="Net Pts" value={formatPoints(daily?.netPts)} tone="positive" />
+            </Box>
+          )}
+        </CardContent>
+      </Card>
 
       <Box
         display="grid"
@@ -236,7 +264,11 @@ const HistoricalDataPage = () => {
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                           Net Change
                         </Typography>
-                        <Typography variant="h6" fontWeight={800} color="success.main">
+                        <Typography
+                          variant="h6"
+                          fontWeight={800}
+                          color={daily?.netPts && daily.netPts < 0 ? 'error.main' : 'success.main'}
+                        >
                           {formatPoints(daily?.netPts)}
                         </Typography>
                       </Box>
@@ -305,6 +337,10 @@ const StatPill = ({ label, value, color }: { label: string; value: ReactNode; co
       bgcolor: 'background.paper',
       textAlign: 'center',
       boxShadow: 2,
+      minHeight: 88,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
     }}
   >
     <Typography variant="caption" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
@@ -316,7 +352,53 @@ const StatPill = ({ label, value, color }: { label: string; value: ReactNode; co
   </Box>
 );
 
-const ErrorState = ({ title, message, hint }: { title: string; message: string; hint?: string }) => (
+const SummaryPill = ({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  tone: 'positive' | 'negative' | 'neutral';
+}) => (
+  <Box
+    sx={{
+      border: '1px solid',
+      borderColor: 'divider',
+      borderRadius: 3,
+      p: 1.5,
+      bgcolor: 'background.paper',
+      textAlign: 'center',
+      boxShadow: 2,
+    }}
+  >
+    <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
+      {label}
+    </Typography>
+    <Typography
+      variant="subtitle1"
+      fontWeight={700}
+      sx={{
+        color: tone === 'positive' ? 'success.main' : tone === 'negative' ? 'error.main' : 'text.primary',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      {value}
+    </Typography>
+  </Box>
+);
+
+const ErrorState = ({
+  title,
+  message,
+  hint,
+  onRetry,
+}: {
+  title: string;
+  message: string;
+  hint?: string;
+  onRetry?: () => void;
+}) => (
   <Stack spacing={1} alignItems="center" textAlign="center" sx={{ color: 'text.secondary' }}>
     <ErrorOutlineIcon sx={{ color: 'text.secondary' }} />
     <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
@@ -329,6 +411,11 @@ const ErrorState = ({ title, message, hint }: { title: string; message: string; 
       <Typography variant="caption" color="text.secondary">
         {hint}
       </Typography>
+    )}
+    {onRetry && (
+      <Button variant="outlined" size="small" onClick={onRetry}>
+        Retry
+      </Button>
     )}
   </Stack>
 );

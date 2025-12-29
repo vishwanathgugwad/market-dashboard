@@ -22,16 +22,12 @@ const DonutStatCard = ({ title, up, down, caption, error, loading, empty }: Donu
 
   return (
     <Card sx={{ height: '100%', minWidth: 160 }}>
-      <CardContent sx={{ p: 3 }}>
+      <CardContent>
         <Stack spacing={1.25} alignItems="center">
           <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
             {title}
           </Typography>
-          {loading ? (
-            <Skeleton variant="circular" width={96} height={96} />
-          ) : (
-            <BoxDonut data={data} centerLabel="Adv vs Dec" />
-          )}
+          {loading ? <Skeleton variant="circular" width={108} height={108} /> : <BoxDonut data={data} centerLabel="ADV / DEC" />}
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
             <Stack spacing={0.25} alignItems="center">
               <Typography variant="body2" fontWeight={700} color="success.main">
@@ -68,13 +64,13 @@ const BoxDonut = ({
   data: { name: string; value: number; color: string }[];
   centerLabel: string;
 }) => (
-  <Box sx={{ position: 'relative', width: 108, height: 108 }}>
+  <Box sx={{ position: 'relative', width: 120, height: 120 }}>
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie
           data={data}
-          innerRadius={24}
-          outerRadius={48}
+          innerRadius={34}
+          outerRadius={56}
           startAngle={90}
           endAngle={450}
           paddingAngle={2}

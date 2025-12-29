@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, useTheme } from '@mui/material';
+import { Box, Card, CardContent, CardHeader, Stack, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
   CartesianGrid,
@@ -26,7 +26,7 @@ interface IndexChartCardProps {
   showGrid?: boolean;
 }
 
-const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: IndexChartCardProps) => {
+const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = true }: IndexChartCardProps) => {
   const theme = useTheme();
   const tooltipStyles = {
     backgroundColor: theme.palette.background.paper,
@@ -43,11 +43,14 @@ const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: In
         subheader={marketOpen ? 'Live intraday momentum' : 'Market closed · latest snapshot'}
         subheaderTypographyProps={{ color: 'text.secondary', variant: 'caption' }}
         titleTypographyProps={{ sx: { textTransform: 'uppercase', letterSpacing: 1, fontSize: 13 } }}
+        sx={{ pb: 0 }}
       />
-      <CardContent sx={{ pt: 1, pb: 2.5 }}>
+      <CardContent sx={{ pt: 1, pb: 2 }}>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
+            {showGrid && (
+              <CartesianGrid strokeDasharray="4 6" stroke={alpha(theme.palette.text.secondary, 0.25)} />
+            )}
             <XAxis
               dataKey="timestamp"
               tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
@@ -63,11 +66,13 @@ const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: In
             />
             {marketOpen && (
               <Tooltip
-                labelFormatter={(label) => new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                labelFormatter={(label) =>
+                  new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }
                 contentStyle={tooltipStyles}
-                labelStyle={{ color: theme.palette.text.secondary }}
                 itemStyle={{ color: theme.palette.text.primary }}
                 cursor={{ stroke: alpha(theme.palette.primary.main, 0.18), strokeWidth: 1 }}
+                content={<ChartTooltip />}
               />
             )}
             {(lines ?? [{ dataKey: 'value', color: theme.palette.primary.main, strokeWidth: 3 }]).map((line) => (
@@ -85,6 +90,38 @@ const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: In
         </ResponsiveContainer>
       </CardContent>
     </Card>
+  );
+};
+
+const ChartTooltip = ({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean;
+  label?: string;
+  payload?: Array<{ dataKey?: string; value?: number | string; color?: string }>;
+}) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">
+        {label ? new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+      </Typography>
+      <Stack spacing={0.5} mt={0.5}>
+        {payload.map((entry) => (
+          <Stack key={entry.dataKey} direction="row" spacing={1.5} alignItems="center">
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: entry.color ?? 'primary.main' }} />
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {entry.dataKey}
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700, marginLeft: 'auto' }}>
+              {typeof entry.value === 'number' ? entry.value.toFixed(2) : entry.value}
+            </Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </Box>
   );
 };
 
