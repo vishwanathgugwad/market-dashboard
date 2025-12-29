@@ -92,7 +92,7 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
   const [input, setInput] = useState('');
   const [isResponding, setIsResponding] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(floating);
   const [isExpanded, setIsExpanded] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -157,7 +157,13 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
   };
 
   const toggleMinimized = () => {
-    setIsMinimized((prev) => !prev);
+    setIsMinimized((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsExpanded(false);
+      }
+      return next;
+    });
   };
 
   const toggleExpanded = () => {
