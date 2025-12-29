@@ -65,6 +65,19 @@ export type LiveContributorsResponse = {
   }>;
 };
 
+export type LiveIndexQuoteResponse = {
+  indexKey: string;
+  indexName: string;
+  timestamp: string;
+  ltp: number;
+  prevClose: number;
+  open: number;
+  high: number;
+  low: number;
+  change: number;
+  changePct: number;
+};
+
 const INDEX_ROUTE_MAP: Record<string, string> = {
   nifty50: 'nifty50',
   banknifty: 'banknifty',
@@ -190,4 +203,29 @@ export const fetchLiveContributors = async ({
   }
 
   return payload as LiveContributorsResponse;
+};
+
+export const fetchLiveIndexQuote = async ({
+  indexKey,
+}: {
+  indexKey: string;
+}): Promise<LiveIndexQuoteResponse> => {
+  const indexRoute = INDEX_ROUTE_MAP[indexKey];
+  if (!indexRoute) {
+    throw new Error('Selected index is not supported.');
+  }
+
+  const url = buildUrl(`/api/live/index/${indexRoute}/quote`);
+  const res = await fetch(url);
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(payload?.error || payload?.message || `Request failed (${res.status})`);
+  }
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  return payload as LiveIndexQuoteResponse;
 };
