@@ -1,4 +1,5 @@
 const { loadInstruments } = require("./instruments");
+const { setTimeout: sleep } = require("timers/promises");
 
 const INDEX_NAME_TO_NSE = {
   NIFTY50: "NIFTY 50",
@@ -7,7 +8,7 @@ const INDEX_NAME_TO_NSE = {
 };
 
 const KITE_INSTRUMENTS_TTL_MS = 6 * 60 * 60 * 1000;
-const CONSTITUENTS_TTL_MS = 30 * 60 * 1000;
+const CONSTITUENTS_TTL_MS = 6 * 60 * 60 * 1000; 
 const NSE_COOKIE_TTL_MS = 2 * 60 * 60 * 1000;
 
 const instrumentsCache = {
@@ -23,6 +24,31 @@ const nseCookieCache = {
 };
 
 const constituentsCache = new Map();
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchJsonWithRetry(url, options = {}, { retries = 2, timeoutMs = 20000 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetchWithTimeout(url, options, timeoutMs);
+    } catch (err) {
+      lastErr = err;
+      // simple backoff
+      await sleep(500 * (attempt + 1));
+    }
+  }
+  throw lastErr;
+}
 
 function getSupportedIndexName(indexName) {
   const normalized = String(indexName || "").toUpperCase();
@@ -108,36 +134,57 @@ async function fetchNseConstituents(indexName) {
   )}`;
 
   const inflight = (async () => {
-    let cookieHeader = await getNseCookieHeader();
-    let response = await fetch(url, {
-      headers: buildNseHeaders({ referer, cookieHeader }),
-    });
+    try {
+      let cookieHeader = await getNseCookieHeader();
+  
+      let response = await fetchJsonWithRetry(
+        url,
+        { headers: buildNseHeaders({ referer, cookieHeader }) },
+        { retries: 2, timeoutMs: 20000 }
+      );
+  
+      if (response.status === 401 || response.status === 403) {
+        nseCookieCache.cookie = null;
+        cookieHeader = await getNseCookieHeader();
+  
+        response = await fetchJsonWithRetry(
+          url,
+          { headers: buildNseHeaders({ referer, cookieHeader }) },
+          { retries: 2, timeoutMs: 20000 }
+        );
+      }
+  
+      if (!response.ok) {
+        throw new Error(`NSE HTTP ${response.status}`);
+      }
+  
+      const payload = await response.json();
+      const symbols = (payload?.data || [])
+        .map((row) => row.symbol)
+        .filter(Boolean);
+  
+        constituentsCache.set(normalized, {
+          data: cached?.data || null,            // ✅ preserve stale symbols
+          expiresAt: cached?.expiresAt || 0,     // optional preserve
+          inflight,
+        });
+  
+      return symbols;
+    } catch (err) {
+      // ✅ FALLBACK TO STALE CACHE
+      const stale = cached?.data || constituentsCache.get(normalized)?.data;
 
-    if (response.status === 401 || response.status === 403) {
-      nseCookieCache.cookie = null;
-      cookieHeader = await getNseCookieHeader();
-      response = await fetch(url, {
-        headers: buildNseHeaders({ referer, cookieHeader }),
-      });
+      if (stale && stale.length) {
+        console.warn(
+          `NSE fetch failed for ${normalized}. Using stale constituents.`,
+          err?.message || err
+        );
+        return stale;
+      }
+      throw err;
     }
-
-    if (!response.ok) {
-      throw new Error(`NSE constituents fetch failed. Status: ${response.status}`);
-    }
-
-    const payload = await response.json();
-    const symbols = (payload?.data || [])
-      .map((row) => row.symbol)
-      .filter((symbol) => Boolean(symbol));
-
-    constituentsCache.set(normalized, {
-      data: symbols,
-      expiresAt: Date.now() + CONSTITUENTS_TTL_MS,
-      inflight: null,
-    });
-
-    return symbols;
   })();
+  
 
   constituentsCache.set(normalized, {
     data: null,
@@ -227,7 +274,9 @@ async function getIndexInstrumentToken(indexName) {
       `Invalid instrument_token for ${normalized} (${nseIndexName}): ${found.instrument_token}`
     );
   }
-
+  console.log(
+    `[INDEX TOKEN] ${normalized} -> ${token}`
+  );
   return token;
 }
 

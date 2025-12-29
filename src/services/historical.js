@@ -1,6 +1,10 @@
 const { getKiteClient } = require("./kiteClient");
 
+const { DateTime } = require("luxon");
+const { getIndexInstrumentToken } = require("./indexConstituents");
+
 const DAY_TIMEFRAME = "day";
+const DAY_INTERVAL = "day";
 const tradingDaysCache = new Map();
 
 const IST_TIMEZONE = "Asia/Kolkata";
@@ -53,32 +57,62 @@ function cacheSet(key, data, ttlMs) {
 
 async function getTradingDaysForIndex({
   indexKey,
-  indexInfo,
   limit = 30,
-  lookbackDays = 80,
+  lookbackDays = 120,
   anchorDate = null,
 }) {
-  if (!indexInfo?.indexToken) {
-    return { source: "synthetic", days: buildSyntheticTradingDays(limit) };
-  }
-
   const anchorKey = anchorDate ? toDateOnly(anchorDate) : "latest";
   const cacheKey = `trading-days:${indexKey}:${anchorKey}:${limit}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
-  const kite = getKiteClient();
-  const to = anchorDate ? istEndOfDay(toDateOnly(anchorDate)) : new Date();
-  const from = new Date(to.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
-  let candles = [];
+  let indexToken;
   try {
-    candles = await kite.getHistoricalData(indexInfo.indexToken, from, to, DAY_TIMEFRAME);
+    // ✅ Always resolve index token dynamically
+    indexToken = await getIndexInstrumentToken(indexKey.toUpperCase());
   } catch (err) {
-    console.warn(`Falling back to synthetic trading days for ${indexKey}:`, err?.message || err);
+    console.warn(
+      `[TRADING DAYS] Missing index token for ${indexKey}, using synthetic`,
+      err?.message || err
+    );
+    return { source: "synthetic", days: buildSyntheticTradingDays(limit) };
   }
 
-  const days = Array.from(new Set(candles.map((c) => toDateOnly(c.date))))
-    .filter(Boolean)
+  const kite = getKiteClient();
+
+  // ✅ Proper JS Date objects in IST
+  const toDt = anchorDate
+    ? DateTime.fromISO(anchorDate, { zone: "Asia/Kolkata" }).endOf("day")
+    : DateTime.now().setZone("Asia/Kolkata").endOf("day");
+
+  const fromDt = toDt.minus({ days: lookbackDays }).startOf("day");
+
+  let candles = [];
+  try {
+    candles = await kite.getHistoricalData(
+      indexToken,
+      DAY_INTERVAL,
+      fromDt.toJSDate(),
+      toDt.toJSDate(),
+      false,
+      false
+    );
+  } catch (err) {
+    console.warn(
+      `Falling back to synthetic trading days for ${indexKey}:`,
+      err?.message || err
+    );
+  }
+
+  const days = Array.from(
+    new Set(
+      (candles || []).map((c) =>
+        DateTime.fromJSDate(c.date)
+          .setZone("Asia/Kolkata")
+          .toFormat("yyyy-MM-dd")
+      )
+    )
+  )
     .sort((a, b) => new Date(b) - new Date(a))
     .slice(0, limit);
 

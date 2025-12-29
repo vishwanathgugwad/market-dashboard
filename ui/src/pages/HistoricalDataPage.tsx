@@ -20,7 +20,6 @@ const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'nifty50', label: 'NIFTY 50' },
   { key: 'banknifty', label: 'NIFTY Bank' },
   { key: 'finnifty', label: 'FINNIFTY' },
-  { key: 'midcpnifty', label: 'MIDCPNIFTY' },
 ];
 
 const TIMEFRAME_OPTIONS = [

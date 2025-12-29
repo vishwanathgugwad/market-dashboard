@@ -14,7 +14,6 @@ const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'NIFTY50', label: 'NIFTY 50' },
   { key: 'NIFTYBANK', label: 'NIFTY Bank' },
   { key: 'FINNIFTY', label: 'FINNIFTY' },
-  { key: 'MIDCPNIFTY', label: 'MIDCPNIFTY' },
 ];
 
 const contributors = [
