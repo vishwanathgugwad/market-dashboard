@@ -28,17 +28,45 @@ const MetricCard = ({
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
-        <Stack spacing={1.5} alignItems={align === 'center' ? 'center' : 'flex-start'}>
-          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280' }}>
+        <Stack
+          spacing={1.5}
+          alignItems={align === 'center' ? 'center' : 'flex-start'}
+          sx={{ width: '100%' }}
+        >
+          <Typography
+            variant="subtitle2"
+            sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280', width: '100%', textAlign: align }}
+          >
             {title}
           </Typography>
           {value !== undefined && (
-            <Typography variant="h4" fontWeight={800} color={accentColor}>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+              color={accentColor}
+              sx={{
+                width: '100%',
+                textAlign: align,
+                wordBreak: 'break-word',
+                overflowWrap: 'anywhere',
+                lineHeight: 1.15,
+                fontSize: { xs: '1.6rem', sm: '1.85rem', md: '2.05rem' },
+              }}
+            >
               {value}
             </Typography>
           )}
           {subtitle && (
-            <Typography variant="caption" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                color: '#6b7280',
+                width: '100%',
+                textAlign: align,
+              }}
+            >
               {subtitle}
             </Typography>
           )}
