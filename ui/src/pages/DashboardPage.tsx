@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Card, CardContent, Chip, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import ContributorsCard from '../components/ContributorsCard';
@@ -243,19 +243,14 @@ const DashboardPage = () => {
   const quoteHighText = quoteHigh !== null ? quoteHigh.toFixed(2) : null;
   const quoteLowText = quoteLow !== null ? quoteLow.toFixed(2) : null;
   const changeTone = quoteChange !== null ? (quoteChange >= 0 ? 'positive' : 'negative') : 'neutral';
-  const changeBg =
-    changeTone === 'positive'
-      ? alpha(theme.palette.success.main, 0.16)
-      : changeTone === 'negative'
-      ? alpha(theme.palette.error.main, 0.16)
-      : alpha(theme.palette.text.secondary, 0.12);
-  const changeBorder =
-    changeTone === 'positive'
-      ? alpha(theme.palette.success.main, 0.32)
-      : changeTone === 'negative'
-      ? alpha(theme.palette.error.main, 0.32)
-      : theme.palette.divider;
   const changeTextColor = changeTone === 'neutral' ? theme.palette.text.primary : quoteColor;
+  const moodLabel = changeTone === 'positive' ? 'Positive' : changeTone === 'negative' ? 'Negative' : 'Neutral';
+  const moodColor =
+    changeTone === 'positive'
+      ? theme.palette.success.main
+      : changeTone === 'negative'
+      ? theme.palette.error.main
+      : theme.palette.text.secondary;
 
   return (
     <Stack spacing={3} alignItems="center">
@@ -282,11 +277,25 @@ const DashboardPage = () => {
                 sx={{
                   width: '100%',
                   borderRadius: 2,
-                  border: `1px solid ${changeBorder}`,
-                  bgcolor: changeBg,
+                  border: `1px solid ${theme.palette.divider}`,
+                  bgcolor: alpha(theme.palette.background.paper, 0.7),
                   p: 2,
                 }}
               >
+                <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" spacing={1}>
+                  <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: 1.4, color: 'text.secondary' }}>
+                    Change
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={moodLabel}
+                    sx={{
+                      color: moodColor,
+                      borderColor: alpha(moodColor, 0.4),
+                      bgcolor: alpha(moodColor, 0.12),
+                    }}
+                  />
+                </Stack>
                 <Stack direction="row" alignItems="baseline" spacing={1.2} flexWrap="wrap">
                   {quoteValue ? (
                     <Typography
@@ -343,7 +352,7 @@ const DashboardPage = () => {
           >
             <Stack
               direction="row"
-              spacing={2}
+              spacing={1.5}
               sx={{
                 width: '100%',
                 alignItems: 'center',
@@ -351,15 +360,44 @@ const DashboardPage = () => {
                 flexWrap: 'wrap',
               }}
             >
-              <Typography variant="caption" color="text.secondary">
-                O {quoteOpenText ? quoteOpenText : <Skeleton variant="text" width={48} />}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                H {quoteHighText ? quoteHighText : <Skeleton variant="text" width={48} />}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                L {quoteLowText ? quoteLowText : <Skeleton variant="text" width={48} />}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  O
+                </Typography>
+                {quoteOpenText ? (
+                  <Typography variant="caption" fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {quoteOpenText}
+                  </Typography>
+                ) : (
+                  <Skeleton variant="text" width={48} />
+                )}
+              </Stack>
+              <Divider flexItem orientation="vertical" sx={{ mx: 0.5 }} />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  H
+                </Typography>
+                {quoteHighText ? (
+                  <Typography variant="caption" fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {quoteHighText}
+                  </Typography>
+                ) : (
+                  <Skeleton variant="text" width={48} />
+                )}
+              </Stack>
+              <Divider flexItem orientation="vertical" sx={{ mx: 0.5 }} />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="caption" color="text.secondary">
+                  L
+                </Typography>
+                {quoteLowText ? (
+                  <Typography variant="caption" fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {quoteLowText}
+                  </Typography>
+                ) : (
+                  <Skeleton variant="text" width={48} />
+                )}
+              </Stack>
             </Stack>
             {quoteError && (
               <Typography variant="caption" color="error.main">
@@ -369,7 +407,7 @@ const DashboardPage = () => {
           </MetricCard>
 
           <ContributorsCard
-            title={`${selectedLabel} Contributors`}
+            title={`${selectedLabel} Top Contributors`}
             items={contributorsState.items}
             loading={contributorsState.loading}
             error={contributorsState.error}

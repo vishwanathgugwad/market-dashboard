@@ -22,12 +22,12 @@ const SegmentedTabs = ({ options, value, onChange }: SegmentedTabsProps) => {
         alignItems: 'center',
         borderRadius: 999,
         border: '1px solid',
-        borderColor: 'divider',
-        backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.4 : 0.9),
-        px: 0.75,
-        py: 0.6,
+        borderColor: alpha(theme.palette.divider, 0.8),
+        backgroundColor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.45 : 0.92),
+        px: 0.6,
+        py: 0.5,
         boxShadow: theme.shadows[2],
-        gap: 0.75,
+        gap: 0.5,
       }}
     >
       {options.map((option) => {
@@ -38,19 +38,24 @@ const SegmentedTabs = ({ options, value, onChange }: SegmentedTabsProps) => {
             onClick={() => onChange(option.key)}
             sx={{
               borderRadius: 999,
-              px: { xs: 1.8, md: 2.6 },
-              py: 0.8,
+              px: { xs: 1.6, md: 2.4 },
+              py: 0.7,
               transition: 'all 0.2s ease',
-              backgroundColor: isActive ? theme.palette.background.paper : 'transparent',
-              color: isActive ? theme.palette.text.primary : theme.palette.text.secondary,
+              backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.16) : 'transparent',
+              color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
               fontWeight: isActive ? 700 : 600,
-              letterSpacing: 0.6,
+              letterSpacing: 0.8,
               textTransform: 'uppercase',
-              border: isActive ? `1px solid ${theme.palette.primary.main}` : '1px solid transparent',
+              border: isActive ? `1px solid ${alpha(theme.palette.primary.main, 0.5)}` : '1px solid transparent',
               boxShadow: isActive ? theme.shadows[3] : 'none',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, isActive ? 0.2 : 0.12),
+              },
             }}
           >
-            <Typography variant="body2">{option.label}</Typography>
+            <Typography variant="caption" sx={{ fontSize: 12 }}>
+              {option.label}
+            </Typography>
           </ButtonBase>
         );
       })}
