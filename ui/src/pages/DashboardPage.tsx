@@ -1,5 +1,5 @@
 import { Box, Card, CardContent, CircularProgress, Stack, Typography } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import ContributorsCard from '../components/ContributorsCard';
 import DonutStatCard from '../components/DonutStatCard';
 import IndexChartCard from '../components/IndexChartCard';
@@ -9,12 +9,25 @@ import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
 import LiveChatCard from '../components/LiveChatCard';
 import { getIndexSeries } from '../services/indexService';
 import { IndexSeriesPoint } from '../types/indices';
+import { fetchLiveBreadth, LiveBreadthResponse } from '../lib/api';
+
+type LiveCardState = {
+  data?: LiveBreadthResponse;
+  loading: boolean;
+  error?: string;
+};
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'NIFTY50', label: 'NIFTY 50' },
   { key: 'NIFTYBANK', label: 'NIFTY Bank' },
   { key: 'FINNIFTY', label: 'FINNIFTY' },
 ];
+
+const INDEX_KEY_MAP: Record<string, string> = {
+  NIFTY50: 'nifty50',
+  NIFTYBANK: 'banknifty',
+  FINNIFTY: 'finnifty',
+};
 
 const contributors = [
   { name: 'BHARTIARTL', change: 1.87 },
@@ -56,8 +69,12 @@ const DashboardPage = () => {
   const [series, setSeries] = useState<IndexSeriesPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [now, setNow] = useState<Date>(new Date());
+  const [live5, setLive5] = useState<LiveCardState>({ loading: true });
+  const [live15, setLive15] = useState<LiveCardState>({ loading: true });
+  const [live60, setLive60] = useState<LiveCardState>({ loading: true });
 
   const marketOpen = now.getHours() >= 9 && (now.getHours() < 16 || (now.getHours() === 16 && now.getMinutes() === 0));
+  const indexKey = useMemo(() => INDEX_KEY_MAP[selectedIndex], [selectedIndex]);
 
   useEffect(() => {
     const loadSeries = async () => {
@@ -74,6 +91,40 @@ const DashboardPage = () => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const fetchInterval = async (
+      interval: '5minute' | '15minute' | '60minute',
+      setter: Dispatch<SetStateAction<LiveCardState>>,
+    ) => {
+      setter((prev) => ({ ...prev, loading: true, error: undefined }));
+      try {
+        const data = await fetchLiveBreadth({ indexKey, interval });
+        if (!isActive) return;
+        setter({ data, loading: false });
+      } catch (error) {
+        if (!isActive) return;
+        const message = error instanceof Error ? error.message : 'Failed to fetch';
+        setter({ data: undefined, loading: false, error: message });
+      }
+    };
+
+    const fetchAll = () => {
+      fetchInterval('5minute', setLive5);
+      fetchInterval('15minute', setLive15);
+      fetchInterval('60minute', setLive60);
+    };
+
+    fetchAll();
+    const timer = setInterval(fetchAll, 30000);
+
+    return () => {
+      isActive = false;
+      clearInterval(timer);
+    };
+  }, [indexKey]);
 
   const fallbackSeries = useMemo<IndexSeriesPoint[]>(
     () =>
@@ -146,9 +197,9 @@ const DashboardPage = () => {
               sparklineData={sparklineValues}
               sparklineColor={changeColor}
             />
-            <DonutStatCard title="5 min live" up={34} down={16} />
-            <DonutStatCard title="15 min live" up={22} down={28} />
-            <DonutStatCard title="1 hour live" up={42} down={8} />
+            <LiveDonutCard title="5 min live" intervalLabel="5 min" state={live5} />
+            <LiveDonutCard title="15 min live" intervalLabel="15 min" state={live15} />
+            <LiveDonutCard title="1 hour live" intervalLabel="1 hour" state={live60} />
           </Box>
 
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }} gap={2}>
@@ -206,5 +257,34 @@ const LoadingCard = () => (
     <CircularProgress />
   </Card>
 );
+
+const LiveDonutCard = ({
+  title,
+  intervalLabel,
+  state,
+}: {
+  title: string;
+  intervalLabel: string;
+  state: LiveCardState;
+}) => {
+  const data = state.data;
+  const waiting = data ? !data.slotCompleted : false;
+  const up = data?.summary.advances ?? 0;
+  const down = data?.summary.declines ?? 0;
+  const caption = waiting ? data?.message || `Waiting for first ${intervalLabel} candle` : undefined;
+  const errorText = state.error ? 'Failed to fetch' : undefined;
+
+  return (
+    <DonutStatCard
+      title={title}
+      up={up}
+      down={down}
+      loading={state.loading}
+      empty={waiting || !!errorText}
+      caption={caption}
+      error={errorText}
+    />
+  );
+};
 
 export default DashboardPage;

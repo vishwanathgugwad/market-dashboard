@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 
 export type BreadthRowResponse = {
@@ -28,6 +28,26 @@ export type BreadthResponse = {
   };
   rows: BreadthRowResponse[];
   source: 'computed' | 'redis_cache' | 'redis_cache_after_wait';
+};
+
+export type LiveBreadthResponse = {
+  indexName: string;
+  interval: string;
+  window: {
+    date: string;
+    fromTime: string;
+    toTime: string;
+  };
+  slotCompleted: boolean;
+  summary: {
+    advances: number;
+    declines: number;
+    unchanged: number;
+    no_data: number;
+    errors?: number;
+  };
+  source: 'computed' | 'redis_cache' | 'redis_cache_after_wait';
+  message?: string;
 };
 
 const INDEX_ROUTE_MAP: Record<string, string> = {
@@ -101,4 +121,31 @@ export const fetchBreadth = async ({
 
     return payload as BreadthResponse;
   }
+};
+
+export const fetchLiveBreadth = async ({
+  indexKey,
+  interval,
+}: {
+  indexKey: string;
+  interval: string;
+}): Promise<LiveBreadthResponse> => {
+  const indexRoute = INDEX_ROUTE_MAP[indexKey];
+  if (!indexRoute) {
+    throw new Error('Selected index is not supported.');
+  }
+
+  const url = buildUrl(`/api/live/breadth/${indexRoute}`, { interval });
+  const res = await fetch(url);
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(payload?.error || payload?.message || `Request failed (${res.status})`);
+  }
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  return payload as LiveBreadthResponse;
 };
