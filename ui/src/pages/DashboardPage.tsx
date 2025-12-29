@@ -245,10 +245,6 @@ const DashboardPage = () => {
   const quoteHighText = quoteHigh !== null ? quoteHigh.toFixed(2) : '—';
   const quoteLowText = quoteLow !== null ? quoteLow.toFixed(2) : '—';
 
-  const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const dayString = now.toLocaleDateString([], { weekday: 'long' });
-  const dateString = now.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
-
   return (
     <Stack spacing={3} alignItems="center">
       <SegmentedTabs options={INDEX_OPTIONS} value={selectedIndex} onChange={setSelectedIndex} />
@@ -261,19 +257,35 @@ const DashboardPage = () => {
         alignItems="start"
       >
         <Stack spacing={2}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', p: 3 }}>
-              <Typography variant="h3" fontWeight={800} sx={{ letterSpacing: 2, mb: 1 }}>
-                {timeString}
+          <MetricCard
+            title={selectedLabel}
+            subtitle="Intraday"
+            value={quoteValue}
+            accentColor={quoteChange !== null ? quoteColor : '#94a3b8'}
+            sparklineData={sparklineValues}
+            sparklineColor={quoteChange !== null ? quoteColor : changeColor}
+            align="left"
+          >
+            <Typography variant="body2" color="text.secondary">
+              {quotePctText} • LTP {quoteLtpText}
+            </Typography>
+            <Stack spacing={0.25} sx={{ width: '100%' }}>
+              <Typography variant="caption" color="text.secondary">
+                O {quoteOpenText}
               </Typography>
-              <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-                {dayString}
+              <Typography variant="caption" color="text.secondary">
+                H {quoteHighText}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {dateString}
+              <Typography variant="caption" color="text.secondary">
+                L {quoteLowText}
               </Typography>
-            </CardContent>
-          </Card>
+            </Stack>
+            {quoteError && (
+              <Typography variant="caption" color="error.main">
+                Failed to fetch
+              </Typography>
+            )}
+          </MetricCard>
 
           <ContributorsCard
             title={`${selectedLabel} Contributors`}
@@ -284,36 +296,7 @@ const DashboardPage = () => {
         </Stack>
 
         <Stack spacing={2.5}>
-          <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1.2fr repeat(3, 1fr)' }} gap={2}>
-            <MetricCard
-              title={selectedLabel}
-              subtitle="Intraday"
-              value={quoteValue}
-              accentColor={quoteChange !== null ? quoteColor : '#94a3b8'}
-              sparklineData={sparklineValues}
-              sparklineColor={quoteChange !== null ? quoteColor : changeColor}
-              align="left"
-            >
-              <Typography variant="body2" color="text.secondary">
-                {quotePctText} • LTP {quoteLtpText}
-              </Typography>
-              <Stack spacing={0.25} sx={{ width: '100%' }}>
-                <Typography variant="caption" color="text.secondary">
-                  O {quoteOpenText}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  H {quoteHighText}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  L {quoteLowText}
-                </Typography>
-              </Stack>
-              {quoteError && (
-                <Typography variant="caption" color="error.main">
-                  Failed to fetch
-                </Typography>
-              )}
-            </MetricCard>
+          <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(3, 1fr)' }} gap={2}>
             <LiveDonutCard title="5 min live" intervalLabel="5 min" state={live5} />
             <LiveDonutCard title="15 min live" intervalLabel="15 min" state={live15} />
             <LiveDonutCard title="1 hour live" intervalLabel="1 hour" state={live60} />
