@@ -381,13 +381,6 @@ const DashboardPage = () => {
               </Typography>
             )}
           </MetricCard>
-
-          <ContributorsCard
-            title={`${selectedLabel} Top Contributors`}
-            items={contributorsState.items}
-            loading={contributorsState.loading}
-            error={contributorsState.error}
-          />
         </Stack>
 
         <Stack spacing={2.5}>
@@ -399,8 +392,17 @@ const DashboardPage = () => {
 
         </Stack>
 
-        <LiveChatCard contextLabel={selectedIndex} marketOpen={marketOpen} />
+        <Stack spacing={2}>
+          <ContributorsCard
+            title={`${selectedLabel} Top Contributors`}
+            items={contributorsState.items}
+            loading={contributorsState.loading}
+            error={contributorsState.error}
+          />
+        </Stack>
       </Box>
+
+      <LiveChatCard contextLabel={selectedIndex} marketOpen={marketOpen} floating />
     </Stack>
   );
 };
