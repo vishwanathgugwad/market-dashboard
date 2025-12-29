@@ -31,19 +31,19 @@ const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: In
       <CardHeader
         title={title}
         subheader={marketOpen ? 'Live intraday momentum' : 'Market closed · latest snapshot'}
-        subheaderTypographyProps={{ color: 'text.secondary' }}
-        titleTypographyProps={{ sx: { textTransform: 'uppercase', letterSpacing: 1, fontSize: 14 } }}
+        subheaderTypographyProps={{ color: 'text.secondary', variant: 'caption' }}
+        titleTypographyProps={{ sx: { textTransform: 'uppercase', letterSpacing: 1, fontSize: 13 } }}
       />
-      <CardContent>
+      <CardContent sx={{ pt: 1, pb: 2.5 }}>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />}
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />}
             <XAxis hide dataKey="timestamp" />
             <YAxis hide />
             {marketOpen && (
               <Tooltip
                 labelFormatter={(label) => new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}
+                contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
               />
             )}
             {(lines ?? [{ dataKey: 'value', color: '#f97316', strokeWidth: 3 }]).map((line) => (

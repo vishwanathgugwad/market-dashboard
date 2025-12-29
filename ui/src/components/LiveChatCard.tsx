@@ -137,13 +137,30 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
   };
 
   return (
-    <Card sx={{ height: '100%', minHeight: 520, display: 'flex', flexDirection: 'column' }}>
+    <Card
+      sx={{
+        height: '100%',
+        minHeight: 520,
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: '#F1F5F9',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
+      }}
+    >
       <CardHeader
         title="Live Chat"
         subheader="Realtime desk support and quick strategy checks"
-        titleTypographyProps={{ sx: { textTransform: 'uppercase', letterSpacing: 1, fontSize: 14 } }}
-        subheaderTypographyProps={{ color: 'text.secondary' }}
-        action={<Chip size="small" color={liveBadge.color as any} label={liveBadge.label} icon={<BoltIcon fontSize="small" />} />}
+        titleTypographyProps={{ sx: { textTransform: 'uppercase', letterSpacing: 1, fontSize: 13, fontWeight: 700 } }}
+        subheaderTypographyProps={{ color: 'text.secondary', variant: 'caption' }}
+        action={
+          <Chip
+            size="small"
+            color={liveBadge.color as any}
+            label={liveBadge.label}
+            icon={<BoltIcon fontSize="small" />}
+          />
+        }
       />
       <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ color: 'text.secondary' }}>
@@ -166,8 +183,8 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
         <Box
           ref={scrollContainerRef}
           sx={{
-            border: '1px solid #e5e7eb',
-            bgcolor: '#f8fafc',
+            border: '1px solid #E2E8F0',
+            bgcolor: '#F8FAFC',
             borderRadius: 2,
             p: 1.5,
             display: 'flex',
@@ -180,8 +197,8 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
         >
           {messages.map((message) => {
             const isUser = message.sender === 'You';
-            const bubbleColor = isUser ? '#0f172a' : message.tone === 'caution' ? '#fef3c7' : '#ffffff';
-            const bubbleBorder = isUser ? '#0f172a' : '#e5e7eb';
+            const bubbleColor = isUser ? '#0F172A' : message.tone === 'caution' ? '#FEF3C7' : '#FFFFFF';
+            const bubbleBorder = isUser ? '#0F172A' : '#E2E8F0';
 
             return (
               <Stack
@@ -191,28 +208,28 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
                 justifyContent={isUser ? 'flex-end' : 'flex-start'}
                 alignItems="flex-start"
               >
-                {!isUser && <Avatar sx={{ bgcolor: '#0f172a', fontSize: 12 }}>SB</Avatar>}
+                {!isUser && <Avatar sx={{ bgcolor: '#0F172A', fontSize: 11 }}>SB</Avatar>}
                 <Box
                   sx={{
                     maxWidth: '80%',
                     bgcolor: bubbleColor,
-                    color: isUser ? '#ffffff' : '#0f172a',
-                    px: 1.5,
-                    py: 1.2,
+                    color: isUser ? '#FFFFFF' : '#0F172A',
+                    px: 1.4,
+                    py: 1.1,
                     borderRadius: 2,
                     border: `1px solid ${bubbleBorder}`,
-                    boxShadow: isUser ? '0 8px 24px rgba(15, 23, 42, 0.25)' : 'none',
+                    boxShadow: isUser ? '0 6px 16px rgba(15, 23, 42, 0.18)' : 'none',
                   }}
                 >
                   <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                    <Typography variant="body2" fontWeight={700} sx={{ color: isUser ? '#c7d2fe' : '#0f172a' }}>
+                    <Typography variant="caption" fontWeight={700} sx={{ color: isUser ? '#C7D2FE' : '#0F172A' }}>
                       {message.sender}
                     </Typography>
-                    <Typography variant="caption" color={isUser ? '#e5e7eb' : 'text.secondary'}>
+                    <Typography variant="caption" color={isUser ? '#E5E7EB' : 'text.secondary'}>
                       {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Typography>
                   </Stack>
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ mt: 0.5, fontSize: 13 }}>
                     {message.content}
                   </Typography>
                 </Box>
@@ -221,11 +238,11 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
           })}
           {isResponding && (
             <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar sx={{ bgcolor: '#0f172a', fontSize: 12 }}>SB</Avatar>
+              <Avatar sx={{ bgcolor: '#0F172A', fontSize: 11 }}>SB</Avatar>
               <Box
                 sx={{
-                  bgcolor: '#ffffff',
-                  border: '1px solid #e5e7eb',
+                  bgcolor: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
                   borderRadius: 2,
                   px: 1.5,
                   py: 1,
@@ -259,12 +276,17 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
                 handleSend();
               }
             }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: '#FFFFFF',
+              },
+            }}
           />
           <IconButton
             color="primary"
             onClick={handleSend}
             disabled={!input.trim()}
-            sx={{ bgcolor: '#0f172a', color: '#ffffff', '&:disabled': { bgcolor: '#e5e7eb', color: '#9ca3af' } }}
+            sx={{ bgcolor: '#0F172A', color: '#FFFFFF', '&:disabled': { bgcolor: '#E2E8F0', color: '#94A3B8' } }}
           >
             <SendIcon fontSize="small" />
           </IconButton>
@@ -272,7 +294,13 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
 
         <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={1}>
           {QUICK_PROMPTS.map((prompt) => (
-            <Button key={prompt} size="small" variant="outlined" onClick={() => setPrompt(prompt)} sx={{ textTransform: 'none' }}>
+            <Button
+              key={prompt}
+              size="small"
+              variant="outlined"
+              onClick={() => setPrompt(prompt)}
+              sx={{ textTransform: 'none', bgcolor: '#FFFFFF' }}
+            >
               {prompt}
             </Button>
           ))}
