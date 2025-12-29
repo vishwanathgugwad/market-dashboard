@@ -1,9 +1,8 @@
-import { Box, Card, CardContent, Chip, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Chip, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import ContributorsCard from '../components/ContributorsCard';
 import DonutStatCard from '../components/DonutStatCard';
-import MarketBreadthTable from '../components/MarketBreadthTable';
 import MetricCard from '../components/MetricCard';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
 import LiveChatCard from '../components/LiveChatCard';
@@ -47,15 +46,6 @@ const INDEX_KEY_MAP: Record<string, string> = {
   NIFTYBANK: 'banknifty',
   FINNIFTY: 'finnifty',
 };
-
-const fiveMinRows = [
-  { time: '9:15-9:20', advances: 12, declines: 38, range: '-30 pts' },
-  { time: '9:20-9:25', advances: 12, declines: 38, range: '-30 pts' },
-  { time: '9:25-9:30', advances: 18, declines: 35, range: '-17 pts' },
-  { time: '9:30-9:35', advances: 20, declines: 35, range: '-15 pts' },
-  { time: '9:35-9:40', advances: 22, declines: 32, range: '-10 pts' },
-  { time: '10:40-10:45', advances: 28, declines: 28, range: '0 pts' },
-];
 
 const DashboardPage = () => {
   const theme = useTheme();
@@ -407,11 +397,6 @@ const DashboardPage = () => {
             <LiveDonutCard title="1 hour live" intervalLabel="1 hour" state={live60} />
           </Box>
 
-          <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }} gap={2}>
-            <MarketBreadthTable title="5 min market breadth" rows={fiveMinRows} />
-            <PlaceholderCard title="15 min market breadth" />
-            <PlaceholderCard title="1 hour market breadth" />
-          </Box>
         </Stack>
 
         <LiveChatCard contextLabel={selectedIndex} marketOpen={marketOpen} />
@@ -419,16 +404,6 @@ const DashboardPage = () => {
     </Stack>
   );
 };
-
-const PlaceholderCard = ({ title }: { title: string }) => (
-  <Card sx={{ height: '100%' }}>
-    <CardContent sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
-        {title}
-      </Typography>
-    </CardContent>
-  </Card>
-);
 
 const LiveDonutCard = ({
   title,
