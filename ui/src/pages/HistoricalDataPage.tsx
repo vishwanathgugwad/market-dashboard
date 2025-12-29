@@ -20,6 +20,7 @@ const INDEX_OPTIONS: SegmentedTabOption[] = [
   { key: 'nifty50', label: 'NIFTY 50' },
   { key: 'banknifty', label: 'NIFTY Bank' },
   { key: 'finnifty', label: 'FINNIFTY' },
+  { key: 'midcpnifty', label: 'MIDCPNIFTY' },
 ];
 
 const TIMEFRAME_OPTIONS = [
@@ -85,7 +86,7 @@ const HistoricalDataPage = () => {
         if (!isActive) return;
         if (response.days?.length) {
           setAvailableDates(response.days);
-          if (!selectedDate) {
+          if (!response.days.includes(selectedDate)) {
             setSelectedDate(response.days[0]);
           }
         }
