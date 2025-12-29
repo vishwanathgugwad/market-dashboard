@@ -84,7 +84,7 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
   const [input, setInput] = useState('');
   const [isResponding, setIsResponding] = useState(false);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const liveBadge = useMemo<{ label: string; color: 'default' | 'success' }>(
     () => ({ label: marketOpen ? 'Live market' : 'Market closed', color: marketOpen ? 'success' : 'default' }),
@@ -105,8 +105,8 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
   }, [contextLabel]);
 
   useEffect(() => {
-    if (!bottomRef.current) return;
-    bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (!scrollContainerRef.current) return;
+    scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
   }, [messages]);
 
   const handleSend = () => {
@@ -164,6 +164,7 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
         </Stack>
 
         <Box
+          ref={scrollContainerRef}
           sx={{
             border: '1px solid #e5e7eb',
             bgcolor: '#f8fafc',
@@ -241,7 +242,6 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
               </Box>
             </Stack>
           )}
-          <div ref={bottomRef} />
         </Box>
 
         <Divider />

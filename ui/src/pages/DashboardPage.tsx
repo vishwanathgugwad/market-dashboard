@@ -172,6 +172,7 @@ const DashboardPage = () => {
           name: item.symbol,
           change: item.contribPts,
         }));
+        items.sort((a, b) => b.change - a.change);
         setContributorsState({ loading: false, items, error: null });
       } catch (error) {
         if (!isActive) return;
