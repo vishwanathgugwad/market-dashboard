@@ -240,10 +240,9 @@ const DashboardPage = () => {
   const quotePctText =
     quoteChangePct !== null ? `${quoteChangePct >= 0 ? '+' : ''}${quoteChangePct.toFixed(2)}%` : '—';
   const quoteLtpText = quoteLtp !== null ? quoteLtp.toFixed(2) : '—';
-  const quoteOhlText =
-    quoteOpen !== null && quoteHigh !== null && quoteLow !== null
-      ? `O ${quoteOpen.toFixed(2)}  H ${quoteHigh.toFixed(2)}  L ${quoteLow.toFixed(2)}`
-      : 'O —  H —  L —';
+  const quoteOpenText = quoteOpen !== null ? quoteOpen.toFixed(2) : '—';
+  const quoteHighText = quoteHigh !== null ? quoteHigh.toFixed(2) : '—';
+  const quoteLowText = quoteLow !== null ? quoteLow.toFixed(2) : '—';
 
   const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const dayString = now.toLocaleDateString([], { weekday: 'long' });
@@ -276,6 +275,7 @@ const DashboardPage = () => {
           </Card>
 
           <ContributorsCard
+            title={`${selectedLabel} Contributors`}
             items={contributorsState.items}
             loading={contributorsState.loading}
             error={contributorsState.error}
@@ -296,9 +296,17 @@ const DashboardPage = () => {
               <Typography variant="body2" color="text.secondary">
                 {quotePctText} • LTP {quoteLtpText}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {quoteOhlText}
-              </Typography>
+              <Stack spacing={0.25} sx={{ width: '100%' }}>
+                <Typography variant="caption" color="text.secondary">
+                  O {quoteOpenText}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  H {quoteHighText}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  L {quoteLowText}
+                </Typography>
+              </Stack>
               {quoteError && (
                 <Typography variant="caption" color="error.main">
                   Failed to fetch

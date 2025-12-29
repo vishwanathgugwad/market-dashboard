@@ -6,12 +6,13 @@ interface Contributor {
 }
 
 interface ContributorsCardProps {
+  title: string;
   items: Contributor[];
   loading?: boolean;
   error?: string | null;
 }
 
-const ContributorsCard = ({ items, loading = false, error = null }: ContributorsCardProps) => {
+const ContributorsCard = ({ title, items, loading = false, error = null }: ContributorsCardProps) => {
   const showStatus = loading || error;
 
   return (
@@ -19,7 +20,7 @@ const ContributorsCard = ({ items, loading = false, error = null }: Contributors
       <CardContent sx={{ p: 2.5 }}>
         <Stack spacing={1.5}>
           <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280' }}>
-            Nifty50 Contributors
+            {title}
           </Typography>
           <Stack spacing={1} sx={{ maxHeight: 320, overflowY: 'auto', pr: 1 }}>
             {showStatus ? (
