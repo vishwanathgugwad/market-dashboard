@@ -164,30 +164,35 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
     setIsExpanded((prev) => !prev);
   };
 
-  const cardWidth = isExpanded ? 440 : 320;
-  const cardHeight = isMinimized ? 'auto' : isExpanded ? 600 : 460;
+  const cardWidth = isExpanded ? 520 : 360;
+  const cardHeight = isMinimized
+    ? 'auto'
+    : isExpanded
+    ? 'min(85vh, 760px)' // ✅ grows up to window height
+    : 'min(70vh, 560px)'; // ✅ normal size
 
   return (
-    <Card
-      sx={{
-        height: floating ? cardHeight : '100%',
-        minHeight: floating ? undefined : 520,
-        width: floating ? cardWidth : 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        position: floating ? 'fixed' : 'relative',
-        right: floating ? { xs: 16, sm: 24 } : undefined,
-        bottom: floating ? { xs: 16, sm: 24 } : undefined,
-        zIndex: floating ? theme.zIndex.modal + 1 : 'auto',
-        boxShadow: floating ? theme.shadows[10] : undefined,
-        border: floating ? `1px solid ${alpha(theme.palette.primary.main, 0.15)}` : undefined,
-        maxHeight: floating ? '80vh' : undefined,
-        transition: 'height 0.2s ease, width 0.2s ease',
-      }}
-    >
+<Card
+  sx={{
+    height: floating ? cardHeight : '100%',
+    minHeight: floating ? undefined : 520,
+    width: floating ? cardWidth : 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',            // ✅ IMPORTANT
+    position: floating ? 'fixed' : 'relative',
+    right: floating ? { xs: 16, sm: 24 } : undefined,
+    bottom: floating ? { xs: 16, sm: 24 } : undefined,
+    zIndex: floating ? theme.zIndex.modal + 1 : 'auto',
+    boxShadow: floating ? theme.shadows[10] : undefined,
+    border: floating ? `1px solid ${alpha(theme.palette.primary.main, 0.15)}` : undefined,
+    maxHeight: floating ? '85vh' : undefined,
+    transition: 'height 0.2s ease, width 0.2s ease',
+  }}
+>
+
       <CardHeader
         title="Live Chat"
-        subheader="Realtime desk support and quick strategy checks"
         titleTypographyProps={{ sx: { textTransform: 'uppercase', letterSpacing: 1, fontSize: 13, fontWeight: 700 } }}
         subheaderTypographyProps={{ color: 'text.secondary', variant: 'caption' }}
         action={
@@ -212,40 +217,34 @@ const LiveChatCard = ({ contextLabel, marketOpen, floating = false }: LiveChatCa
         }
       />
       {!isMinimized && (
-        <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ color: 'text.secondary', flexWrap: 'wrap' }}>
-            <Tooltip title="Connection quality">
-              <Chip
-                size="small"
-                variant="outlined"
-                icon={<SignalCellularAltIcon fontSize="small" />}
-                label={marketOpen ? 'Channel stable' : 'Awaiting next session'}
-              />
-            </Tooltip>
-            <Tooltip title="Last response latency">
-              <Chip size="small" variant="outlined" icon={<AccessTimeIcon fontSize="small" />} label="< 1s" />
-            </Tooltip>
-            <Typography variant="caption" color="text.secondary">
-              Context · {contextLabel}
-            </Typography>
-          </Stack>
+        <CardContent
+  sx={{
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    flex: 1,
+    minHeight: 0,        // ✅ critical
+    overflow: 'hidden',  // ✅ prevents content pushing card
+  }}
+>
 
           <Box
-            ref={scrollContainerRef}
-            sx={{
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.6 : 0.9),
-              borderRadius: 2,
-              p: 1.5,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-              overflowY: 'auto',
-              flex: 1,
-              minHeight: floating ? 220 : 340,
-            }}
-          >
+  ref={scrollContainerRef}
+  sx={{
+    flex: 1,             // ✅ take remaining height
+    minHeight: 0,        // ✅ allow shrinking (enables scroll)
+    overflowY: 'auto',   // ✅ scroll
+    border: '1px solid',
+    borderColor: 'divider',
+    bgcolor: alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.55 : 0.9),
+    borderRadius: 2,
+    p: 1.5,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 1,
+  }}
+>
+
             {messages.map((message) => {
               const isUser = message.sender === 'You';
               const bubbleColor = isUser
