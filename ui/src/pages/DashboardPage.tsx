@@ -3,7 +3,6 @@ import { alpha } from '@mui/material/styles';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import ContributorsCard from '../components/ContributorsCard';
 import DonutStatCard from '../components/DonutStatCard';
-import IndexChartCard from '../components/IndexChartCard';
 import MarketBreadthTable from '../components/MarketBreadthTable';
 import MetricCard from '../components/MetricCard';
 import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
@@ -62,7 +61,6 @@ const DashboardPage = () => {
   const theme = useTheme();
   const [selectedIndex, setSelectedIndex] = useState<string>(INDEX_OPTIONS[0].key);
   const [series, setSeries] = useState<IndexSeriesPoint[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
   const [now, setNow] = useState<Date>(new Date());
   const [live5, setLive5] = useState<LiveCardState>({ loading: true });
   const [live15, setLive15] = useState<LiveCardState>({ loading: true });
@@ -79,10 +77,8 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const loadSeries = async () => {
-      setLoading(true);
       const data = await getIndexSeries(selectedIndex);
       setSeries(data);
-      setLoading(false);
     };
 
     loadSeries();
@@ -203,16 +199,6 @@ const DashboardPage = () => {
   );
 
   const displaySeries = series.length ? series : fallbackSeries;
-
-  const breadthData = useMemo(
-    () =>
-      displaySeries.map((point, idx) => ({
-        timestamp: point.timestamp,
-        advances: point.value + 20 + (idx % 4 === 0 ? 8 : -6),
-        declines: point.value - 18 + (idx % 3 === 0 ? -4 : 6),
-      })),
-    [displaySeries],
-  );
 
   const sparklineValues = displaySeries.map((point) => point.value);
   const latestValue = displaySeries[displaySeries.length - 1]?.value ?? 0;
@@ -421,33 +407,6 @@ const DashboardPage = () => {
             <LiveDonutCard title="1 hour live" intervalLabel="1 hour" state={live60} />
           </Box>
 
-          <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }} gap={2}>
-            {loading ? (
-              <LoadingCard />
-            ) : (
-              <IndexChartCard
-                title="Nifty50 breadth"
-                data={breadthData}
-                marketOpen={marketOpen}
-                lines={[
-                  { dataKey: 'advances', color: theme.palette.success.main, strokeWidth: 3 },
-                  { dataKey: 'declines', color: theme.palette.error.main, strokeWidth: 3 },
-                ]}
-              />
-            )}
-
-            {loading ? (
-              <LoadingCard />
-            ) : (
-              <IndexChartCard
-                title="Nifty50"
-                data={displaySeries}
-                marketOpen={marketOpen}
-                lines={[{ dataKey: 'value', color: theme.palette.primary.main, strokeWidth: 3 }]}
-              />
-            )}
-          </Box>
-
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }} gap={2}>
             <MarketBreadthTable title="5 min market breadth" rows={fiveMinRows} />
             <PlaceholderCard title="15 min market breadth" />
@@ -468,12 +427,6 @@ const PlaceholderCard = ({ title }: { title: string }) => (
         {title}
       </Typography>
     </CardContent>
-  </Card>
-);
-
-const LoadingCard = () => (
-  <Card sx={{ minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-    <Skeleton variant="rectangular" width="100%" height={200} sx={{ borderRadius: 2 }} />
   </Card>
 );
 
