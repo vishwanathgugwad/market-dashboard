@@ -3,6 +3,7 @@ const { getKiteClient } = require("./services/kiteClient");
 const { getTradingDaysForIndex } = require("./services/historical");
 const { getAdvanceDecline, ValidationError, getAdvanceDeclineLatestSlot} = require("./services/advanceDecline");
 const { getIndexContributorsLive } = require("./services/indexContributors");
+const { getLiveIndexQuote } = require("./services/liveIndexQuote");
 const { getRedis } = require("./cache/redis");  
 const { buildBreadthKeys } = require("./cache/breadthKey");
 
@@ -241,6 +242,17 @@ function createServer({ stream, candleStore, indexTokens }) {
       res.json(data);
     } catch (err) {
       res.status(400).json({ error: err?.message || "Failed" });
+    }
+  });
+
+  app.get("/api/live/index/:indexKey/quote", async (req, res) => {
+    try {
+      const { indexKey } = req.params;
+      const payload = await getLiveIndexQuote({ indexKey });
+      return res.json(payload);
+    } catch (err) {
+      console.error("Failed to load index quote", err);
+      return res.status(502).json({ error: err?.message || "Failed to load index quote." });
     }
   });
 

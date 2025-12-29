@@ -9,7 +9,13 @@ import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
 import LiveChatCard from '../components/LiveChatCard';
 import { getIndexSeries } from '../services/indexService';
 import { IndexSeriesPoint } from '../types/indices';
-import { fetchLiveBreadth, fetchLiveContributors, LiveBreadthResponse } from '../lib/api';
+import {
+  fetchLiveBreadth,
+  fetchLiveContributors,
+  fetchLiveIndexQuote,
+  LiveBreadthResponse,
+  LiveIndexQuoteResponse,
+} from '../lib/api';
 
 type LiveCardState = {
   data?: LiveBreadthResponse;
@@ -21,6 +27,12 @@ type ContributorsState = {
   loading: boolean;
   items: Array<{ name: string; change: number }>;
   error: string | null;
+};
+
+type LiveIndexQuoteState = {
+  loading: boolean;
+  data?: LiveIndexQuoteResponse;
+  error?: string;
 };
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
@@ -44,6 +56,11 @@ const fiveMinRows = [
   { time: '10:40-10:45', advances: 28, declines: 28, range: '0 pts' },
 ];
 
+const isMarketOpen = (date: Date) => {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  return minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30;
+};
+
 const DashboardPage = () => {
   const [selectedIndex, setSelectedIndex] = useState<string>(INDEX_OPTIONS[0].key);
   const [series, setSeries] = useState<IndexSeriesPoint[]>([]);
@@ -52,13 +69,14 @@ const DashboardPage = () => {
   const [live5, setLive5] = useState<LiveCardState>({ loading: true });
   const [live15, setLive15] = useState<LiveCardState>({ loading: true });
   const [live60, setLive60] = useState<LiveCardState>({ loading: true });
+  const [liveQuote, setLiveQuote] = useState<LiveIndexQuoteState>({ loading: true });
   const [contributorsState, setContributorsState] = useState<ContributorsState>({
     loading: true,
     items: [],
     error: null,
   });
 
-  const marketOpen = now.getHours() >= 9 && (now.getHours() < 16 || (now.getHours() === 16 && now.getMinutes() === 0));
+  const marketOpen = isMarketOpen(now);
   const indexKey = useMemo(() => INDEX_KEY_MAP[selectedIndex], [selectedIndex]);
 
   useEffect(() => {
@@ -110,6 +128,36 @@ const DashboardPage = () => {
       clearInterval(timer);
     };
   }, [indexKey]);
+
+  useEffect(() => {
+    let isActive = true;
+    let timer: number | undefined;
+
+    const fetchQuote = async () => {
+      setLiveQuote((prev) => ({ ...prev, loading: true, error: undefined }));
+      try {
+        const data = await fetchLiveIndexQuote({ indexKey });
+        if (!isActive) return;
+        setLiveQuote({ data, loading: false });
+      } catch (error) {
+        if (!isActive) return;
+        const message = error instanceof Error ? error.message : 'Failed to fetch';
+        setLiveQuote({ data: undefined, loading: false, error: message });
+      }
+    };
+
+    const pollMs = marketOpen ? 5000 : 60000;
+
+    fetchQuote();
+    timer = window.setInterval(fetchQuote, pollMs);
+
+    return () => {
+      isActive = false;
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [indexKey, marketOpen]);
 
   useEffect(() => {
     let isActive = true;
@@ -171,8 +219,31 @@ const DashboardPage = () => {
   const latestValue = displaySeries[displaySeries.length - 1]?.value ?? 0;
   const firstValue = displaySeries[0]?.value ?? latestValue;
   const changeValue = latestValue - firstValue;
-  const changeText = `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(2)}`;
   const changeColor = changeValue >= 0 ? '#22c55e' : '#ef4444';
+
+  const selectedLabel = useMemo(
+    () => INDEX_OPTIONS.find((option) => option.key === selectedIndex)?.label ?? selectedIndex,
+    [selectedIndex],
+  );
+
+  const quote = liveQuote.data;
+  const quoteChange = quote?.change ?? null;
+  const quoteChangePct = quote?.changePct ?? null;
+  const quoteLtp = quote?.ltp ?? null;
+  const quoteOpen = quote?.open ?? null;
+  const quoteHigh = quote?.high ?? null;
+  const quoteLow = quote?.low ?? null;
+
+  const quoteError = liveQuote.error;
+  const quoteColor = quoteChange !== null && quoteChange >= 0 ? '#22c55e' : '#ef4444';
+  const quoteValue = quoteChange !== null ? `${quoteChange >= 0 ? '+' : ''}${quoteChange.toFixed(2)}` : '—';
+  const quotePctText =
+    quoteChangePct !== null ? `${quoteChangePct >= 0 ? '+' : ''}${quoteChangePct.toFixed(2)}%` : '—';
+  const quoteLtpText = quoteLtp !== null ? quoteLtp.toFixed(2) : '—';
+  const quoteOhlText =
+    quoteOpen !== null && quoteHigh !== null && quoteLow !== null
+      ? `O ${quoteOpen.toFixed(2)}  H ${quoteHigh.toFixed(2)}  L ${quoteLow.toFixed(2)}`
+      : 'O —  H —  L —';
 
   const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const dayString = now.toLocaleDateString([], { weekday: 'long' });
@@ -214,13 +285,26 @@ const DashboardPage = () => {
         <Stack spacing={2.5}>
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1.2fr repeat(3, 1fr)' }} gap={2}>
             <MetricCard
-              title="Nifty 50"
-              subtitle={selectedIndex}
-              value={`${changeText}`}
-              accentColor={changeColor}
+              title={selectedLabel}
+              subtitle="Intraday"
+              value={quoteValue}
+              accentColor={quoteChange !== null ? quoteColor : '#94a3b8'}
               sparklineData={sparklineValues}
-              sparklineColor={changeColor}
-            />
+              sparklineColor={quoteChange !== null ? quoteColor : changeColor}
+              align="left"
+            >
+              <Typography variant="body2" color="text.secondary">
+                {quotePctText} • LTP {quoteLtpText}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {quoteOhlText}
+              </Typography>
+              {quoteError && (
+                <Typography variant="caption" color="error.main">
+                  Failed to fetch
+                </Typography>
+              )}
+            </MetricCard>
             <LiveDonutCard title="5 min live" intervalLabel="5 min" state={live5} />
             <LiveDonutCard title="15 min live" intervalLabel="15 min" state={live15} />
             <LiveDonutCard title="1 hour live" intervalLabel="1 hour" state={live60} />
