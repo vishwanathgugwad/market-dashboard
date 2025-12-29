@@ -9,12 +9,18 @@ import SegmentedTabs, { SegmentedTabOption } from '../components/SegmentedTabs';
 import LiveChatCard from '../components/LiveChatCard';
 import { getIndexSeries } from '../services/indexService';
 import { IndexSeriesPoint } from '../types/indices';
-import { fetchLiveBreadth, LiveBreadthResponse } from '../lib/api';
+import { fetchLiveBreadth, fetchLiveContributors, LiveBreadthResponse } from '../lib/api';
 
 type LiveCardState = {
   data?: LiveBreadthResponse;
   loading: boolean;
   error?: string;
+};
+
+type ContributorsState = {
+  loading: boolean;
+  items: Array<{ name: string; change: number }>;
+  error: string | null;
 };
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
@@ -28,32 +34,6 @@ const INDEX_KEY_MAP: Record<string, string> = {
   NIFTYBANK: 'banknifty',
   FINNIFTY: 'finnifty',
 };
-
-const contributors = [
-  { name: 'BHARTIARTL', change: 1.87 },
-  { name: 'ITC', change: 1.32 },
-  { name: 'TATACONSUM', change: 1.16 },
-  { name: 'SUNPHARMA', change: 1.07 },
-  { name: 'SBILIFE', change: 0.94 },
-  { name: 'BAJAJFINSV', change: 0.89 },
-  { name: 'ASIANPAINT', change: 0.64 },
-  { name: 'TITAN', change: 0.58 },
-  { name: 'KOTAKBANK', change: 0.33 },
-  { name: 'INFY', change: 0.28 },
-  { name: 'TCS', change: -0.1 },
-  { name: 'DRREDDY', change: -0.22 },
-  { name: 'HDFCBANK', change: -0.3 },
-  { name: 'HINDUNILVR', change: -0.38 },
-  { name: 'HDFC', change: -0.4 },
-  { name: 'POWERGRID', change: -0.52 },
-  { name: 'ONGC', change: -0.76 },
-  { name: 'RELIANCE', change: -1.03 },
-  { name: 'BAJFINANCE', change: -1.11 },
-  { name: 'JSWSTEEL', change: -1.58 },
-  { name: 'TATASTEEL', change: -2.64 },
-  { name: 'UPL', change: -3.45 },
-  { name: 'BAJAJ-AUTO', change: -3.62 },
-];
 
 const fiveMinRows = [
   { time: '9:15-9:20', advances: 12, declines: 38, range: '-30 pts' },
@@ -72,6 +52,11 @@ const DashboardPage = () => {
   const [live5, setLive5] = useState<LiveCardState>({ loading: true });
   const [live15, setLive15] = useState<LiveCardState>({ loading: true });
   const [live60, setLive60] = useState<LiveCardState>({ loading: true });
+  const [contributorsState, setContributorsState] = useState<ContributorsState>({
+    loading: true,
+    items: [],
+    error: null,
+  });
 
   const marketOpen = now.getHours() >= 9 && (now.getHours() < 16 || (now.getHours() === 16 && now.getMinutes() === 0));
   const indexKey = useMemo(() => INDEX_KEY_MAP[selectedIndex], [selectedIndex]);
@@ -125,6 +110,41 @@ const DashboardPage = () => {
       clearInterval(timer);
     };
   }, [indexKey]);
+
+  useEffect(() => {
+    let isActive = true;
+    let timer: number | undefined;
+
+    const fetchContributors = async () => {
+      setContributorsState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const data = await fetchLiveContributors({ indexKey, limit: 15 });
+        if (!isActive) return;
+        const items = data.contributors.map((item) => ({
+          name: item.symbol,
+          change: item.contribPts,
+        }));
+        setContributorsState({ loading: false, items, error: null });
+      } catch (error) {
+        if (!isActive) return;
+        const message = error instanceof Error ? error.message : 'Failed to fetch contributors';
+        setContributorsState({ loading: false, items: [], error: message });
+      }
+    };
+
+    fetchContributors();
+
+    if (marketOpen) {
+      timer = window.setInterval(fetchContributors, 30000);
+    }
+
+    return () => {
+      isActive = false;
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [indexKey, marketOpen]);
 
   const fallbackSeries = useMemo<IndexSeriesPoint[]>(
     () =>
@@ -184,7 +204,11 @@ const DashboardPage = () => {
             </CardContent>
           </Card>
 
-          <ContributorsCard items={contributors} />
+          <ContributorsCard
+            items={contributorsState.items}
+            loading={contributorsState.loading}
+            error={contributorsState.error}
+          />
         </Stack>
 
         <Stack spacing={2.5}>
