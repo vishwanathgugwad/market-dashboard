@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 
 interface DonutStatCardProps {
@@ -12,18 +12,19 @@ interface DonutStatCardProps {
 }
 
 const DonutStatCard = ({ title, up, down, caption, error, loading, empty }: DonutStatCardProps) => {
+  const theme = useTheme();
   const data = empty
-    ? [{ name: 'Waiting', value: 1, color: '#E2E8F0' }]
+    ? [{ name: 'Waiting', value: 1, color: theme.palette.divider }]
     : [
-        { name: 'Up', value: up, color: '#16A34A' },
-        { name: 'Down', value: down, color: '#DC2626' },
+        { name: 'Up', value: up, color: theme.palette.success.main },
+        { name: 'Down', value: down, color: theme.palette.error.main },
       ];
 
   return (
     <Card sx={{ height: '100%', minWidth: 160 }}>
       <CardContent sx={{ p: 3 }}>
         <Stack spacing={1.25} alignItems="center">
-          <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#64748B' }}>
+          <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
             {title}
           </Typography>
           {loading ? (
@@ -33,24 +34,24 @@ const DonutStatCard = ({ title, up, down, caption, error, loading, empty }: Donu
           )}
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
             <Stack spacing={0.25} alignItems="center">
-              <Typography variant="body2" fontWeight={700} color="#16A34A">
+              <Typography variant="body2" fontWeight={700} color="success.main">
                 ↑ {up}
               </Typography>
-              <Typography variant="caption" color="#64748B">
+              <Typography variant="caption" color="text.secondary">
                 Adv
               </Typography>
             </Stack>
             <Stack spacing={0.25} alignItems="center">
-              <Typography variant="body2" fontWeight={700} color="#DC2626">
+              <Typography variant="body2" fontWeight={700} color="error.main">
                 ↓ {down}
               </Typography>
-              <Typography variant="caption" color="#64748B">
+              <Typography variant="caption" color="text.secondary">
                 Dec
               </Typography>
             </Stack>
           </Stack>
           {(caption || error) && (
-            <Typography variant="caption" color={error ? '#DC2626' : '#64748B'} textAlign="center">
+            <Typography variant="caption" color={error ? 'error.main' : 'text.secondary'} textAlign="center">
               {error || caption}
             </Typography>
           )}
@@ -96,7 +97,7 @@ const BoxDonut = ({
         px: 1,
       }}
     >
-      <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
         {centerLabel}
       </Typography>
     </Box>

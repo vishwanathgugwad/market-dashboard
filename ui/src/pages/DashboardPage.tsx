@@ -1,4 +1,5 @@
-import { Box, Card, CardContent, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import ContributorsCard from '../components/ContributorsCard';
 import DonutStatCard from '../components/DonutStatCard';
@@ -58,6 +59,7 @@ const fiveMinRows = [
 ];
 
 const DashboardPage = () => {
+  const theme = useTheme();
   const [selectedIndex, setSelectedIndex] = useState<string>(INDEX_OPTIONS[0].key);
   const [series, setSeries] = useState<IndexSeriesPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -216,7 +218,7 @@ const DashboardPage = () => {
   const latestValue = displaySeries[displaySeries.length - 1]?.value ?? 0;
   const firstValue = displaySeries[0]?.value ?? latestValue;
   const changeValue = latestValue - firstValue;
-  const changeColor = changeValue >= 0 ? '#16A34A' : '#DC2626';
+  const changeColor = changeValue >= 0 ? theme.palette.success.main : theme.palette.error.main;
 
   const selectedLabel = useMemo(
     () => INDEX_OPTIONS.find((option) => option.key === selectedIndex)?.label ?? selectedIndex,
@@ -232,7 +234,7 @@ const DashboardPage = () => {
   const quoteLow = quote?.low ?? null;
 
   const quoteError = liveQuote.error;
-  const quoteColor = quoteChange !== null && quoteChange >= 0 ? '#16A34A' : '#DC2626';
+  const quoteColor = quoteChange !== null && quoteChange >= 0 ? theme.palette.success.main : theme.palette.error.main;
   const quoteValue = quoteChange !== null ? `${quoteChange >= 0 ? '+' : ''}${quoteChange.toFixed(2)}` : null;
   const quotePctText =
     quoteChangePct !== null ? `${quoteChangePct >= 0 ? '+' : ''}${quoteChangePct.toFixed(2)}%` : null;
@@ -243,13 +245,17 @@ const DashboardPage = () => {
   const changeTone = quoteChange !== null ? (quoteChange >= 0 ? 'positive' : 'negative') : 'neutral';
   const changeBg =
     changeTone === 'positive'
-      ? 'rgba(22, 163, 74, 0.12)'
+      ? alpha(theme.palette.success.main, 0.16)
       : changeTone === 'negative'
-      ? 'rgba(220, 38, 38, 0.12)'
-      : 'rgba(148, 163, 184, 0.18)';
+      ? alpha(theme.palette.error.main, 0.16)
+      : alpha(theme.palette.text.secondary, 0.12);
   const changeBorder =
-    changeTone === 'positive' ? 'rgba(22, 163, 74, 0.3)' : changeTone === 'negative' ? 'rgba(220, 38, 38, 0.3)' : '#E2E8F0';
-  const changeTextColor = changeTone === 'neutral' ? '#0F172A' : quoteColor;
+    changeTone === 'positive'
+      ? alpha(theme.palette.success.main, 0.32)
+      : changeTone === 'negative'
+      ? alpha(theme.palette.error.main, 0.32)
+      : theme.palette.divider;
+  const changeTextColor = changeTone === 'neutral' ? theme.palette.text.primary : quoteColor;
 
   return (
     <Stack spacing={3} alignItems="center">
@@ -266,7 +272,7 @@ const DashboardPage = () => {
           <MetricCard
             title={selectedLabel}
             subtitle="Intraday"
-            accentColor={quoteChange !== null ? quoteColor : '#94A3B8'}
+            accentColor={quoteChange !== null ? quoteColor : theme.palette.text.secondary}
             sparklineData={sparklineValues}
             sparklineColor={quoteChange !== null ? quoteColor : changeColor}
             align="left"
@@ -313,7 +319,7 @@ const DashboardPage = () => {
                   )}
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="caption" sx={{ color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
                     LTP
                   </Typography>
                   {quoteLtpText ? (
@@ -321,7 +327,7 @@ const DashboardPage = () => {
                       variant="body2"
                       sx={{
                         fontWeight: 700,
-                        color: '#0F172A',
+                        color: 'text.primary',
                         fontVariantNumeric: 'tabular-nums',
                         letterSpacing: '-0.02em',
                       }}
@@ -356,7 +362,7 @@ const DashboardPage = () => {
               </Typography>
             </Stack>
             {quoteError && (
-              <Typography variant="caption" color="#DC2626">
+              <Typography variant="caption" color="error.main">
                 Market quote is temporarily unavailable.
               </Typography>
             )}
@@ -386,8 +392,8 @@ const DashboardPage = () => {
                 data={breadthData}
                 marketOpen={marketOpen}
                 lines={[
-                  { dataKey: 'advances', color: '#16A34A', strokeWidth: 3 },
-                  { dataKey: 'declines', color: '#DC2626', strokeWidth: 3 },
+                  { dataKey: 'advances', color: theme.palette.success.main, strokeWidth: 3 },
+                  { dataKey: 'declines', color: theme.palette.error.main, strokeWidth: 3 },
                 ]}
               />
             )}
@@ -399,7 +405,7 @@ const DashboardPage = () => {
                 title="Nifty50"
                 data={displaySeries}
                 marketOpen={marketOpen}
-                lines={[{ dataKey: 'value', color: '#2563EB', strokeWidth: 3 }]}
+                lines={[{ dataKey: 'value', color: theme.palette.primary.main, strokeWidth: 3 }]}
               />
             )}
           </Box>
@@ -420,7 +426,7 @@ const DashboardPage = () => {
 const PlaceholderCard = ({ title }: { title: string }) => (
   <Card sx={{ height: '100%' }}>
     <CardContent sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#64748B' }}>
+      <Typography variant="subtitle2" sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary' }}>
         {title}
       </Typography>
     </CardContent>
@@ -468,6 +474,5 @@ const LiveDonutCard = ({
     />
   );
 };
-
 
 export default DashboardPage;

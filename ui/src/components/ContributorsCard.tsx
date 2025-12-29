@@ -1,4 +1,5 @@
-import { Box, Card, CardContent, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, Stack, Typography, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 interface Contributor {
   name: string;
@@ -22,7 +23,7 @@ const ContributorsCard = ({ title, items, loading = false, error = null }: Contr
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
         <Stack spacing={1.5}>
-          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B' }}>
+          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
             {title}
           </Typography>
           <Stack spacing={1.5} sx={{ maxHeight: 320, overflowY: 'auto', pr: 1 }}>
@@ -64,12 +65,13 @@ const ContributorSection = ({
   maxMagnitude: number;
   tone: 'positive' | 'negative';
 }) => {
-  const color = tone === 'positive' ? '#16A34A' : '#DC2626';
+  const theme = useTheme();
+  const color = tone === 'positive' ? theme.palette.success.main : theme.palette.error.main;
   const emptyLabel = tone === 'positive' ? 'No gainers yet' : 'No losers yet';
 
   return (
     <Stack spacing={1}>
-      <Typography variant="caption" sx={{ color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}>
         {title}
       </Typography>
       {items.length === 0 ? (
@@ -84,7 +86,8 @@ const ContributorSection = ({
               key={item.name}
               spacing={0.75}
               sx={{
-                borderBottom: '1px dashed #E5E7EB',
+                borderBottom: '1px dashed',
+                borderColor: 'divider',
                 pb: 1,
               }}
             >
@@ -92,7 +95,7 @@ const ContributorSection = ({
                 <Typography
                   variant="body2"
                   fontWeight={700}
-                  sx={{ color: '#0F172A', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+                  sx={{ color: 'text.primary', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
                 >
                   {item.name}
                 </Typography>
@@ -106,7 +109,7 @@ const ContributorSection = ({
                   position: 'relative',
                   height: 8,
                   borderRadius: 999,
-                  backgroundColor: '#E5E7EB',
+                  backgroundColor: alpha(theme.palette.text.primary, 0.12),
                   overflow: 'hidden',
                 }}
               >

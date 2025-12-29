@@ -12,7 +12,9 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import SendIcon from '@mui/icons-material/Send';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 import BoltIcon from '@mui/icons-material/Bolt';
@@ -81,6 +83,7 @@ const buildBotResponse = (userText: string, contextLabel: string, marketOpen: bo
 };
 
 const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
+  const theme = useTheme();
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
   const [input, setInput] = useState('');
   const [isResponding, setIsResponding] = useState(false);
@@ -143,9 +146,6 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
         minHeight: 520,
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#F1F5F9',
-        border: '1px solid #E2E8F0',
-        boxShadow: '0 8px 18px rgba(15, 23, 42, 0.05)',
       }}
     >
       <CardHeader
@@ -183,8 +183,9 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
         <Box
           ref={scrollContainerRef}
           sx={{
-            border: '1px solid #E2E8F0',
-            bgcolor: '#F8FAFC',
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: alpha(theme.palette.background.default, theme.palette.mode === 'dark' ? 0.6 : 0.9),
             borderRadius: 2,
             p: 1.5,
             display: 'flex',
@@ -197,8 +198,13 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
         >
           {messages.map((message) => {
             const isUser = message.sender === 'You';
-            const bubbleColor = isUser ? '#0F172A' : message.tone === 'caution' ? '#FEF3C7' : '#FFFFFF';
-            const bubbleBorder = isUser ? '#0F172A' : '#E2E8F0';
+            const bubbleColor = isUser
+              ? theme.palette.primary.main
+              : message.tone === 'caution'
+              ? alpha(theme.palette.warning.main, 0.22)
+              : alpha(theme.palette.background.paper, 0.95);
+            const bubbleBorder = isUser ? alpha(theme.palette.primary.main, 0.6) : theme.palette.divider;
+            const bubbleText = isUser ? theme.palette.primary.contrastText : theme.palette.text.primary;
 
             return (
               <Stack
@@ -208,24 +214,32 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
                 justifyContent={isUser ? 'flex-end' : 'flex-start'}
                 alignItems="flex-start"
               >
-                {!isUser && <Avatar sx={{ bgcolor: '#0F172A', fontSize: 11 }}>SB</Avatar>}
+                {!isUser && (
+                  <Avatar sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText, fontSize: 11 }}>
+                    SB
+                  </Avatar>
+                )}
                 <Box
                   sx={{
                     maxWidth: '80%',
                     bgcolor: bubbleColor,
-                    color: isUser ? '#FFFFFF' : '#0F172A',
+                    color: bubbleText,
                     px: 1.4,
                     py: 1.1,
                     borderRadius: 2,
                     border: `1px solid ${bubbleBorder}`,
-                    boxShadow: isUser ? '0 6px 16px rgba(15, 23, 42, 0.18)' : 'none',
+                    boxShadow: isUser ? theme.shadows[3] : 'none',
                   }}
                 >
                   <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                    <Typography variant="caption" fontWeight={700} sx={{ color: isUser ? '#C7D2FE' : '#0F172A' }}>
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      sx={{ color: isUser ? alpha(theme.palette.primary.contrastText, 0.8) : theme.palette.text.primary }}
+                    >
                       {message.sender}
                     </Typography>
-                    <Typography variant="caption" color={isUser ? '#E5E7EB' : 'text.secondary'}>
+                    <Typography variant="caption" color={isUser ? alpha(theme.palette.primary.contrastText, 0.75) : 'text.secondary'}>
                       {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Typography>
                   </Stack>
@@ -238,11 +252,14 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
           })}
           {isResponding && (
             <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar sx={{ bgcolor: '#0F172A', fontSize: 11 }}>SB</Avatar>
+              <Avatar sx={{ bgcolor: theme.palette.primary.main, color: theme.palette.primary.contrastText, fontSize: 11 }}>
+                SB
+              </Avatar>
               <Box
                 sx={{
-                  bgcolor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
+                  bgcolor: theme.palette.background.paper,
+                  border: '1px solid',
+                  borderColor: 'divider',
                   borderRadius: 2,
                   px: 1.5,
                   py: 1,
@@ -278,7 +295,7 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
-                bgcolor: '#FFFFFF',
+                bgcolor: theme.palette.background.paper,
               },
             }}
           />
@@ -286,7 +303,14 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
             color="primary"
             onClick={handleSend}
             disabled={!input.trim()}
-            sx={{ bgcolor: '#0F172A', color: '#FFFFFF', '&:disabled': { bgcolor: '#E2E8F0', color: '#94A3B8' } }}
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.primary.contrastText,
+              '&:disabled': {
+                bgcolor: theme.palette.action.disabledBackground,
+                color: theme.palette.action.disabled,
+              },
+            }}
           >
             <SendIcon fontSize="small" />
           </IconButton>
@@ -299,7 +323,7 @@ const LiveChatCard = ({ contextLabel, marketOpen }: LiveChatCardProps) => {
               size="small"
               variant="outlined"
               onClick={() => setPrompt(prompt)}
-              sx={{ textTransform: 'none', bgcolor: '#FFFFFF' }}
+              sx={{ textTransform: 'none', bgcolor: alpha(theme.palette.background.paper, 0.85) }}
             >
               {prompt}
             </Button>

@@ -8,7 +8,9 @@ import {
   TableHead,
   TableRow,
   Typography,
+  useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { ReactNode } from 'react';
 
 export interface BreadthRow {
@@ -36,13 +38,15 @@ const BreadthTableCard = ({
   emptyText = 'No data available',
   emptyState,
 }: BreadthTableCardProps) => {
+  const theme = useTheme();
+
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: 3 }}>
         <Typography
           variant="subtitle2"
           textAlign="center"
-          sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#64748B', mb: 2 }}
+          sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary', mb: 2 }}
         >
           {title}
         </Typography>
@@ -60,8 +64,8 @@ const BreadthTableCard = ({
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Time</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#16A34A' }}>Advances</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#DC2626' }}>Declines</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: 'success.main' }}>Advances</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: 'error.main' }}>Declines</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Range</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Net</TableCell>
               </TableRow>
@@ -71,32 +75,36 @@ const BreadthTableCard = ({
                 const dominant =
                   row.advances === row.declines ? 'neutral' : row.advances > row.declines ? 'adv' : 'dec';
                 return (
-                <TableRow key={row.time} hover sx={{ bgcolor: idx % 2 === 0 ? '#F8FAFC' : '#FFFFFF' }}>
-                  <TableCell sx={{ fontWeight: 600 }}>{row.time}</TableCell>
-                  <TableCell
-                    sx={{
-                      color: '#16A34A',
-                      fontWeight: 700,
-                      bgcolor: dominant === 'adv' ? 'rgba(22, 163, 74, 0.08)' : 'transparent',
-                      borderRadius: 1,
-                    }}
+                  <TableRow
+                    key={row.time}
+                    hover
+                    sx={{ bgcolor: idx % 2 === 0 ? alpha(theme.palette.primary.main, 0.04) : 'transparent' }}
                   >
-                    {row.advances}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      color: '#DC2626',
-                      fontWeight: 700,
-                      bgcolor: dominant === 'dec' ? 'rgba(220, 38, 38, 0.08)' : 'transparent',
-                      borderRadius: 1,
-                    }}
-                  >
-                    {row.declines}
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{formatCellValue(row.range)}</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{formatCellValue(row.net)}</TableCell>
-                </TableRow>
-              );
+                    <TableCell sx={{ fontWeight: 600 }}>{row.time}</TableCell>
+                    <TableCell
+                      sx={{
+                        color: 'success.main',
+                        fontWeight: 700,
+                        bgcolor: dominant === 'adv' ? alpha(theme.palette.success.main, 0.12) : 'transparent',
+                        borderRadius: 1,
+                      }}
+                    >
+                      {row.advances}
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        color: 'error.main',
+                        fontWeight: 700,
+                        bgcolor: dominant === 'dec' ? alpha(theme.palette.error.main, 0.12) : 'transparent',
+                        borderRadius: 1,
+                      }}
+                    >
+                      {row.declines}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{formatCellValue(row.range)}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{formatCellValue(row.net)}</TableCell>
+                  </TableRow>
+                );
               })}
             </TableBody>
           </Table>

@@ -1,11 +1,5 @@
-import {
-  Box,
-  Card,
-  CardContent,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
@@ -48,6 +42,7 @@ const formatPoints = (value: number | null | undefined) =>
   value === null || value === undefined ? '—' : `${value.toFixed(2)} pts`;
 
 const HistoricalDataPage = () => {
+  const theme = useTheme();
   const todayDate = useMemo(() => formatDateInputValue(new Date()), []);
   const [selectedIndex, setSelectedIndex] = useState(INDEX_OPTIONS[0].key);
   const [selectedTimeframe, setSelectedTimeframe] = useState(TIMEFRAME_OPTIONS[0].key);
@@ -177,7 +172,7 @@ const HistoricalDataPage = () => {
         />
 
         <Stack spacing={1} alignItems="center">
-          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B' }}>
+          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
             Timeframe
           </Typography>
           <SegmentedTabs options={timeframeTabs} value={selectedTimeframe} onChange={setSelectedTimeframe} />
@@ -196,7 +191,7 @@ const HistoricalDataPage = () => {
               <Typography
                 variant="subtitle2"
                 textAlign="center"
-                sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#64748B', mb: 2 }}
+                sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary', mb: 2 }}
               >
                 Daily Candle Market Breadth
               </Typography>
@@ -219,16 +214,17 @@ const HistoricalDataPage = () => {
                   ) : (
                     <>
                       <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
-                        <StatPill label="Advances" value={daily?.advances ?? '—'} color="#16A34A" />
-                        <StatPill label="Declines" value={daily?.declines ?? '—'} color="#DC2626" />
-                        <StatPill label="Unchanged" value={daily?.unchanged ?? '—'} color="#0F172A" />
+                        <StatPill label="Advances" value={daily?.advances ?? '—'} color={theme.palette.success.main} />
+                        <StatPill label="Declines" value={daily?.declines ?? '—'} color={theme.palette.error.main} />
+                        <StatPill label="Unchanged" value={daily?.unchanged ?? '—'} color={theme.palette.text.primary} />
                       </Box>
                       <Box
                         sx={{
-                          border: '1px dashed #E2E8F0',
+                          border: '1px dashed',
+                          borderColor: 'divider',
                           borderRadius: 3,
                           p: 2,
-                          bgcolor: '#F8FAFC',
+                          bgcolor: alpha(theme.palette.background.paper, 0.6),
                         }}
                       >
                         <Typography variant="body2" color="text.secondary">
@@ -240,7 +236,7 @@ const HistoricalDataPage = () => {
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                           Net Change
                         </Typography>
-                        <Typography variant="h6" fontWeight={800} color="#16A34A">
+                        <Typography variant="h6" fontWeight={800} color="success.main">
                           {formatPoints(daily?.netPts)}
                         </Typography>
                       </Box>
@@ -250,7 +246,8 @@ const HistoricalDataPage = () => {
 
                 <Box
                   sx={{
-                    borderTop: '1px solid #E2E8F0',
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
                     pt: 2,
                     mt: 1,
                   }}
@@ -267,10 +264,11 @@ const HistoricalDataPage = () => {
                     sx={{
                       maxHeight: 260,
                       overflow: 'auto',
-                      border: '1px solid #E2E8F0',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       borderRadius: 2,
                       p: 1,
-                      bgcolor: '#F8FAFC',
+                      bgcolor: alpha(theme.palette.background.paper, 0.6),
                     }}
                   >
                     <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
@@ -300,15 +298,16 @@ const HistoricalDataPage = () => {
 const StatPill = ({ label, value, color }: { label: string; value: ReactNode; color: string }) => (
   <Box
     sx={{
-      border: '1px solid #E2E8F0',
+      border: '1px solid',
+      borderColor: 'divider',
       borderRadius: 3,
       p: 2,
-      bgcolor: '#FFFFFF',
+      bgcolor: 'background.paper',
       textAlign: 'center',
-      boxShadow: '0 8px 18px rgba(15,23,42,0.05)',
+      boxShadow: 2,
     }}
   >
-    <Typography variant="caption" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B' }}>
+    <Typography variant="caption" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: 'text.secondary' }}>
       {label}
     </Typography>
     <Typography variant="h5" fontWeight={800} sx={{ color }}>
@@ -318,9 +317,9 @@ const StatPill = ({ label, value, color }: { label: string; value: ReactNode; co
 );
 
 const ErrorState = ({ title, message, hint }: { title: string; message: string; hint?: string }) => (
-  <Stack spacing={1} alignItems="center" textAlign="center" sx={{ color: '#64748B' }}>
-    <ErrorOutlineIcon sx={{ color: '#94A3B8' }} />
-    <Typography variant="subtitle2" sx={{ color: '#0F172A' }}>
+  <Stack spacing={1} alignItems="center" textAlign="center" sx={{ color: 'text.secondary' }}>
+    <ErrorOutlineIcon sx={{ color: 'text.secondary' }} />
+    <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
       {title}
     </Typography>
     <Typography variant="body2" color="text.secondary">

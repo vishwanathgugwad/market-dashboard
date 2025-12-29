@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader } from '@mui/material';
+import { Card, CardContent, CardHeader, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   CartesianGrid,
   Line,
@@ -26,6 +27,15 @@ interface IndexChartCardProps {
 }
 
 const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: IndexChartCardProps) => {
+  const theme = useTheme();
+  const tooltipStyles = {
+    backgroundColor: theme.palette.background.paper,
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: 8,
+    color: theme.palette.text.primary,
+    boxShadow: theme.shadows[2],
+  };
+
   return (
     <Card sx={{ width: '100%', minHeight: 320, height: '100%' }}>
       <CardHeader
@@ -37,16 +47,30 @@ const IndexChartCard = ({ title, data, marketOpen, lines, showGrid = false }: In
       <CardContent sx={{ pt: 1, pb: 2.5 }}>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />}
-            <XAxis hide dataKey="timestamp" />
-            <YAxis hide />
+            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
+            <XAxis
+              dataKey="timestamp"
+              tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              hide
+            />
+            <YAxis
+              tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              hide
+            />
             {marketOpen && (
               <Tooltip
                 labelFormatter={(label) => new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0' }}
+                contentStyle={tooltipStyles}
+                labelStyle={{ color: theme.palette.text.secondary }}
+                itemStyle={{ color: theme.palette.text.primary }}
+                cursor={{ stroke: alpha(theme.palette.primary.main, 0.18), strokeWidth: 1 }}
               />
             )}
-            {(lines ?? [{ dataKey: 'value', color: '#f97316', strokeWidth: 3 }]).map((line) => (
+            {(lines ?? [{ dataKey: 'value', color: theme.palette.primary.main, strokeWidth: 3 }]).map((line) => (
               <Line
                 key={line.dataKey}
                 type="monotone"
