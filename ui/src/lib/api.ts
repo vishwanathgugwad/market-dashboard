@@ -50,6 +50,21 @@ export type LiveBreadthResponse = {
   message?: string;
 };
 
+export type LiveContributorsResponse = {
+  indexName: string;
+  asOf: string;
+  indexLtp: number;
+  baseline: string;
+  weightSource: 'ffmc' | 'equal';
+  contributors: Array<{
+    symbol: string;
+    change: number;
+    changePct: number;
+    contribPts: number;
+    weight: number;
+  }>;
+};
+
 const INDEX_ROUTE_MAP: Record<string, string> = {
   nifty50: 'nifty50',
   banknifty: 'banknifty',
@@ -148,4 +163,31 @@ export const fetchLiveBreadth = async ({
   }
 
   return payload as LiveBreadthResponse;
+};
+
+export const fetchLiveContributors = async ({
+  indexKey,
+  limit = 15,
+}: {
+  indexKey: string;
+  limit?: number;
+}): Promise<LiveContributorsResponse> => {
+  const indexRoute = INDEX_ROUTE_MAP[indexKey];
+  if (!indexRoute) {
+    throw new Error('Selected index is not supported.');
+  }
+
+  const url = buildUrl(`/api/live/contributors/${indexRoute}`, { limit });
+  const res = await fetch(url);
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(payload?.error || payload?.message || `Request failed (${res.status})`);
+  }
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  return payload as LiveContributorsResponse;
 };

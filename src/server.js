@@ -2,8 +2,12 @@ const express = require("express");
 const { getKiteClient } = require("./services/kiteClient");
 const { getTradingDaysForIndex } = require("./services/historical");
 const { getAdvanceDecline, ValidationError } = require("./services/advanceDecline");
+const { getIndexContributorsLive } = require("./services/indexContributors");
 const { getRedis } = require("./cache/redis");  
 const { buildBreadthKeys } = require("./cache/breadthKey");
+
+const CONTRIBUTORS_CACHE_TTL_MS = 20 * 1000;
+const contributorsCache = new Map();
 
 function createServer({ stream, candleStore, indexTokens }) {
   const app = express();
@@ -224,6 +228,64 @@ function createServer({ stream, candleStore, indexTokens }) {
       }
       console.error("Failed to load breadth", err);
       return res.status(500).json({ error: "Failed to load breadth" });
+    }
+  });
+
+  app.get("/api/live/contributors/:indexRoute", async (req, res) => {
+    const { indexRoute } = req.params;
+    const limit = Number(req.query.limit) || 15;
+    const indexMap = {
+      nifty50: "NIFTY50",
+      banknifty: "BANKNIFTY",
+      finnifty: "FINNIFTY",
+    };
+    const indexName = indexMap[String(indexRoute || "").toLowerCase()];
+
+    if (!indexName) {
+      return res.status(404).json({ error: "Unsupported index route." });
+    }
+
+    const cacheKey = `${indexName}:${limit}`;
+    const now = Date.now();
+    const cached = contributorsCache.get(cacheKey);
+
+    if (cached?.data && cached.expiresAt > now) {
+      return res.json(cached.data);
+    }
+
+    if (cached?.inflight) {
+      try {
+        const data = await cached.inflight;
+        return res.json(data);
+      } catch (err) {
+        contributorsCache.delete(cacheKey);
+        return res.status(502).json({ error: "Failed to load contributors." });
+      }
+    }
+
+    const inflight = (async () => {
+      const data = await getIndexContributorsLive({ indexName, limit });
+      contributorsCache.set(cacheKey, {
+        data,
+        expiresAt: Date.now() + CONTRIBUTORS_CACHE_TTL_MS,
+        inflight: null,
+      });
+      return data;
+    })();
+
+    contributorsCache.set(cacheKey, {
+      data: cached?.data || null,
+      expiresAt: cached?.expiresAt || 0,
+      inflight,
+    });
+
+    try {
+      const data = await inflight;
+      return res.json(data);
+    } catch (err) {
+      contributorsCache.delete(cacheKey);
+      console.error("Failed to load contributors", err);
+      return res.status(502).json({ error: "Failed to load contributors." });
     }
   });
   
