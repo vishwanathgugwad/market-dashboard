@@ -19,19 +19,19 @@ const HeaderNav = ({ items }: HeaderNavProps) => {
       sx={{
         px: { xs: 2, md: 4 },
         py: { xs: 3, md: 4 },
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid #E2E8F0',
         textAlign: 'center',
         position: 'sticky',
         top: 0,
         backdropFilter: 'blur(6px)',
-        backgroundColor: 'rgba(247, 249, 251, 0.92)',
+        backgroundColor: 'rgba(248, 250, 252, 0.92)',
         zIndex: 10,
       }}
     >
       <Typography
         variant="h5"
         fontWeight={800}
-        sx={{ letterSpacing: 4, textTransform: 'uppercase', mb: 1, color: '#0f172a' }}
+        sx={{ letterSpacing: 3, textTransform: 'uppercase', mb: 1, color: '#0F172A' }}
       >
         INDEXBREADTH
       </Typography>
@@ -45,7 +45,7 @@ const HeaderNav = ({ items }: HeaderNavProps) => {
                 fontWeight={isActive ? 800 : 600}
                 sx={{
                   letterSpacing: 1,
-                  color: '#0f172a',
+                  color: '#0F172A',
                   opacity: isActive ? 1 : 0.6,
                   transition: 'opacity 0.2s ease',
                 }}

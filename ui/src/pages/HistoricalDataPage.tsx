@@ -2,13 +2,11 @@ import {
   Box,
   Card,
   CardContent,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import BreadthTableCard, { BreadthRow } from '../components/BreadthTableCard';
 import DateSelector from '../components/DateSelector';
@@ -63,6 +61,10 @@ const HistoricalDataPage = () => {
   const selectedTimeframeOption = TIMEFRAME_OPTIONS.find((tf) => tf.key === selectedTimeframe);
   const selectedTimeframeLabel = selectedTimeframeOption?.label ?? selectedTimeframe;
   const selectedInterval = selectedTimeframeOption?.interval ?? '5minute';
+  const timeframeTabs = TIMEFRAME_OPTIONS.map((option) => ({
+    key: option.key,
+    label: option.label,
+  }));
 
   const intradayRows: BreadthRow[] = useMemo(() => {
     if (!breadthData?.rows) return [];
@@ -143,6 +145,16 @@ const HistoricalDataPage = () => {
   }, [selectedIndex, selectedDate, selectedInterval]);
 
   const daily = breadthData?.daily;
+  const breadthErrorMessage = breadthError
+    ? 'We could not load breadth data right now.'
+    : null;
+  const errorState = breadthErrorMessage ? (
+    <ErrorState
+      title="Unable to load data"
+      message={breadthErrorMessage}
+      hint="Retry in a moment or switch the timeframe."
+    />
+  ) : null;
 
   return (
     <Stack spacing={3} alignItems="center">
@@ -165,37 +177,10 @@ const HistoricalDataPage = () => {
         />
 
         <Stack spacing={1} alignItems="center">
-          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280' }}>
+          <Typography variant="subtitle2" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B' }}>
             Timeframe
           </Typography>
-          <Box
-            sx={{
-              border: '1px solid #e5e7eb',
-              borderRadius: 3,
-              p: 2,
-              bgcolor: '#ffffff',
-              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.06)',
-              minWidth: 260,
-              width: '100%',
-              maxWidth: 360,
-            }}
-          >
-            <FormControl fullWidth size="small">
-              <InputLabel id="timeframe-select-label">Select timeframe</InputLabel>
-              <Select
-                labelId="timeframe-select-label"
-                label="Select timeframe"
-                value={selectedTimeframe}
-                onChange={(event) => setSelectedTimeframe(event.target.value)}
-              >
-                {TIMEFRAME_OPTIONS.map((option) => (
-                  <MenuItem key={option.key} value={option.key}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
+          <SegmentedTabs options={timeframeTabs} value={selectedTimeframe} onChange={setSelectedTimeframe} />
         </Stack>
       </Stack>
 
@@ -211,7 +196,7 @@ const HistoricalDataPage = () => {
               <Typography
                 variant="subtitle2"
                 textAlign="center"
-                sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#6b7280', mb: 2 }}
+                sx={{ textTransform: 'uppercase', letterSpacing: 1, color: '#64748B', mb: 2 }}
               >
                 Daily Candle Market Breadth
               </Typography>
@@ -221,26 +206,29 @@ const HistoricalDataPage = () => {
                     {formatDisplayDate(selectedDate)}
                   </Typography>
                   {breadthLoading ? (
-                    <Typography textAlign="center" color="text.secondary" sx={{ py: 2 }}>
-                      Loading breadth data...
-                    </Typography>
-                  ) : breadthError ? (
-                    <Typography textAlign="center" color="error" sx={{ py: 2 }}>
-                      {breadthError}
-                    </Typography>
+                    <Stack spacing={2} sx={{ py: 1 }}>
+                      <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
+                        {[0, 1, 2].map((idx) => (
+                          <Skeleton key={idx} variant="rounded" height={72} />
+                        ))}
+                      </Box>
+                      <Skeleton variant="rounded" height={120} />
+                    </Stack>
+                  ) : breadthErrorMessage ? (
+                    <Box sx={{ py: 2 }}>{errorState}</Box>
                   ) : (
                     <>
                       <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1.5}>
-                        <StatPill label="Advances" value={daily?.advances ?? '—'} color="#22c55e" />
-                        <StatPill label="Declines" value={daily?.declines ?? '—'} color="#ef4444" />
-                        <StatPill label="Unchanged" value={daily?.unchanged ?? '—'} color="#0f172a" />
+                        <StatPill label="Advances" value={daily?.advances ?? '—'} color="#16A34A" />
+                        <StatPill label="Declines" value={daily?.declines ?? '—'} color="#DC2626" />
+                        <StatPill label="Unchanged" value={daily?.unchanged ?? '—'} color="#0F172A" />
                       </Box>
                       <Box
                         sx={{
-                          border: '1px dashed #e5e7eb',
+                          border: '1px dashed #E2E8F0',
                           borderRadius: 3,
                           p: 2,
-                          bgcolor: '#f9fafb',
+                          bgcolor: '#F8FAFC',
                         }}
                       >
                         <Typography variant="body2" color="text.secondary">
@@ -252,7 +240,7 @@ const HistoricalDataPage = () => {
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                           Net Change
                         </Typography>
-                        <Typography variant="h6" fontWeight={800} color="#22c55e">
+                        <Typography variant="h6" fontWeight={800} color="#16A34A">
                           {formatPoints(daily?.netPts)}
                         </Typography>
                       </Box>
@@ -262,7 +250,7 @@ const HistoricalDataPage = () => {
 
                 <Box
                   sx={{
-                    borderTop: '1px solid #e5e7eb',
+                    borderTop: '1px solid #E2E8F0',
                     pt: 2,
                     mt: 1,
                   }}
@@ -279,10 +267,10 @@ const HistoricalDataPage = () => {
                     sx={{
                       maxHeight: 260,
                       overflow: 'auto',
-                      border: '1px solid #e5e7eb',
+                      border: '1px solid #E2E8F0',
                       borderRadius: 2,
                       p: 1,
-                      bgcolor: '#f8fafc',
+                      bgcolor: '#F8FAFC',
                     }}
                   >
                     <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
@@ -300,7 +288,8 @@ const HistoricalDataPage = () => {
             title={`${selectedTimeframeLabel} MARKET BREADTH`}
             rows={intradayRows}
             loading={breadthLoading}
-            emptyText={breadthError ?? 'No data available'}
+            emptyText="No data available"
+            emptyState={errorState}
           />
         </Box>
       </Box>
@@ -311,21 +300,38 @@ const HistoricalDataPage = () => {
 const StatPill = ({ label, value, color }: { label: string; value: ReactNode; color: string }) => (
   <Box
     sx={{
-      border: '1px solid #e5e7eb',
+      border: '1px solid #E2E8F0',
       borderRadius: 3,
       p: 2,
-      bgcolor: '#ffffff',
+      bgcolor: '#FFFFFF',
       textAlign: 'center',
-      boxShadow: '0 8px 20px rgba(15,23,42,0.05)',
+      boxShadow: '0 8px 18px rgba(15,23,42,0.05)',
     }}
   >
-    <Typography variant="caption" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280' }}>
+    <Typography variant="caption" sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B' }}>
       {label}
     </Typography>
     <Typography variant="h5" fontWeight={800} sx={{ color }}>
       {value}
     </Typography>
   </Box>
+);
+
+const ErrorState = ({ title, message, hint }: { title: string; message: string; hint?: string }) => (
+  <Stack spacing={1} alignItems="center" textAlign="center" sx={{ color: '#64748B' }}>
+    <ErrorOutlineIcon sx={{ color: '#94A3B8' }} />
+    <Typography variant="subtitle2" sx={{ color: '#0F172A' }}>
+      {title}
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      {message}
+    </Typography>
+    {hint && (
+      <Typography variant="caption" color="text.secondary">
+        {hint}
+      </Typography>
+    )}
+  </Stack>
 );
 
 export default HistoricalDataPage;

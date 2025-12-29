@@ -6,6 +6,7 @@ interface MetricCardProps {
   title: string;
   subtitle?: string;
   value?: string | number;
+  valueSlot?: ReactNode;
   accentColor?: string;
   sparklineData?: number[];
   sparklineColor?: string;
@@ -17,9 +18,10 @@ const MetricCard = ({
   title,
   subtitle,
   value,
-  accentColor = '#0f172a',
+  valueSlot,
+  accentColor = '#0F172A',
   sparklineData,
-  sparklineColor = '#22c55e',
+  sparklineColor = '#16A34A',
   align = 'center',
   children,
 }: MetricCardProps) => {
@@ -27,7 +29,7 @@ const MetricCard = ({
 
   return (
     <Card sx={{ height: '100%' }}>
-      <CardContent>
+      <CardContent sx={{ p: 3 }}>
         <Stack
           spacing={1.5}
           alignItems={align === 'center' ? 'center' : 'flex-start'}
@@ -35,11 +37,12 @@ const MetricCard = ({
         >
           <Typography
             variant="subtitle2"
-            sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#6b7280', width: '100%', textAlign: align }}
+            sx={{ letterSpacing: 1, textTransform: 'uppercase', color: '#64748B', width: '100%', textAlign: align }}
           >
             {title}
           </Typography>
-          {value !== undefined && (
+          {valueSlot}
+          {value !== undefined && !valueSlot && (
             <Typography
               variant="h4"
               fontWeight={800}
@@ -51,6 +54,8 @@ const MetricCard = ({
                 overflowWrap: 'anywhere',
                 lineHeight: 1.15,
                 fontSize: { xs: '1.6rem', sm: '1.85rem', md: '2.05rem' },
+                letterSpacing: '-0.02em',
+                fontVariantNumeric: 'tabular-nums',
               }}
             >
               {value}
@@ -62,7 +67,7 @@ const MetricCard = ({
               sx={{
                 letterSpacing: 1,
                 textTransform: 'uppercase',
-                color: '#6b7280',
+                color: '#64748B',
                 width: '100%',
                 textAlign: align,
               }}

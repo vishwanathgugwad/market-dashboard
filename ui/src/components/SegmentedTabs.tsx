@@ -18,12 +18,12 @@ const SegmentedTabs = ({ options, value, onChange }: SegmentedTabsProps) => {
         display: 'inline-flex',
         alignItems: 'center',
         borderRadius: 999,
-        border: '1px solid #d1d5db',
-        backgroundColor: '#ffffff',
-        px: 1,
-        py: 0.5,
-        boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
-        gap: 0.5,
+        border: '1px solid #E2E8F0',
+        backgroundColor: '#F1F5F9',
+        px: 0.75,
+        py: 0.6,
+        boxShadow: '0 8px 18px rgba(15, 23, 42, 0.06)',
+        gap: 0.75,
       }}
     >
       {options.map((option) => {
@@ -34,14 +34,16 @@ const SegmentedTabs = ({ options, value, onChange }: SegmentedTabsProps) => {
             onClick={() => onChange(option.key)}
             sx={{
               borderRadius: 999,
-              px: { xs: 2, md: 3 },
-              py: 1,
+              px: { xs: 1.8, md: 2.6 },
+              py: 0.8,
               transition: 'all 0.2s ease',
-              backgroundColor: isActive ? '#0f172a' : 'transparent',
-              color: isActive ? '#ffffff' : '#0f172a',
-              fontWeight: isActive ? 800 : 600,
-              letterSpacing: 1,
+              backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+              color: isActive ? '#0F172A' : '#64748B',
+              fontWeight: isActive ? 700 : 600,
+              letterSpacing: 0.6,
               textTransform: 'uppercase',
+              border: isActive ? '1px solid #2563EB' : '1px solid transparent',
+              boxShadow: isActive ? '0 6px 16px rgba(37, 99, 235, 0.15)' : 'none',
             }}
           >
             <Typography variant="body2">{option.label}</Typography>
