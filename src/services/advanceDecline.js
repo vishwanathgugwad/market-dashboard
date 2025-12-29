@@ -297,8 +297,168 @@ async function getAdvanceDecline({ indexName, date, fromTime, toTime, interval, 
     rows,
   };
 }
+function roundDownToInterval(dt, minutes) {
+  const m = Math.floor(dt.minute / minutes) * minutes;
+  return dt.set({ minute: m, second: 0, millisecond: 0 });
+}
+
+function hasCompletedSlot(now, intervalMinutes) {
+  const marketOpen = now.set({ hour: 9, minute: 15, second: 0, millisecond: 0 });
+  const mins = Math.floor(now.diff(marketOpen, "minutes").minutes);
+  return mins >= intervalMinutes;
+}
+
+async function getAdvanceDeclineLatestSlot({ indexName, interval, concurrency }) {
+  const kiteInterval = mapUiIntervalToKite(interval); // keep compatibility
+  return getLiveBreadthSummaryLatestSlot({
+    indexName,
+    interval: kiteInterval,
+    concurrency,
+  });
+}
+
+
+// ✅ in-memory cache (since you can't run Redis)
+const liveSlotCache = new Map();
+// cacheKey -> { expiresAt, payload }
+
+function cacheGetLive(key) {
+  const v = liveSlotCache.get(key);
+  if (!v) return null;
+  if (Date.now() > v.expiresAt) {
+    liveSlotCache.delete(key);
+    return null;
+  }
+  return v.payload;
+}
+
+function cacheSetLive(key, payload, ttlMs) {
+  liveSlotCache.set(key, { payload, expiresAt: Date.now() + ttlMs });
+}
+
+// slight grace so Kite has time to publish the completed candle
+const CANDLE_GRACE_SECONDS = 20;
+
+async function getLiveBreadthSummaryLatestSlot({ indexName, interval, concurrency }) {
+  const normalizedIndexName = normalizeIndexName(indexName);
+
+  const intervalMap = {
+    "5minute": 5,
+    "15minute": 15,
+    "60minute": 60,
+  };
+
+  const mins = intervalMap[interval];
+  if (!mins) throw new ValidationError("Unsupported interval");
+
+  const now = DateTime.now().setZone("Asia/Kolkata");
+
+  const marketOpen = now.set({ hour: 9, minute: 15, second: 0, millisecond: 0 });
+  const marketClose = now.set({ hour: 15, minute: 30, second: 0, millisecond: 0 });
+
+  // ✅ market closed guard
+  if (now < marketOpen || now > marketClose) {
+    return {
+      indexName: normalizedIndexName,
+      interval,
+      window: {
+        date: now.toFormat("yyyy-MM-dd"),
+        fromTime: DEFAULT_FROM_TIME,
+        toTime: DEFAULT_TO_TIME,
+      },
+      slotCompleted: false,
+      summary: { advances: 0, declines: 0, unchanged: 0, no_data: 0 },
+      source: "computed",
+      message: "Market closed",
+    };
+  }
+
+  // ✅ use grace: treat candle as "completed" only after grace seconds
+  const nowForCandle = now.minus({ seconds: CANDLE_GRACE_SECONDS });
+  const end = roundDownToInterval(nowForCandle, mins);
+
+  // if we haven't reached first full slot end yet (e.g., 9:16 for 5m)
+  if (end <= marketOpen) {
+    return {
+      indexName: normalizedIndexName,
+      interval,
+      window: {
+        date: now.toFormat("yyyy-MM-dd"),
+        fromTime: DEFAULT_FROM_TIME,
+        toTime: DEFAULT_TO_TIME,
+      },
+      slotCompleted: false,
+      summary: { advances: 0, declines: 0, unchanged: 0, no_data: 0 },
+      source: "computed",
+      message: `Waiting for first ${mins}-minute candle`,
+    };
+  }
+
+  const start = end.minus({ minutes: mins });
+
+  const date = start.toFormat("yyyy-MM-dd");
+  const fromTime = start.toFormat("HH:mm:ss");
+  const toTime = end.toFormat("HH:mm:ss");
+
+  // ✅ cache per slot (so your UI polling doesn't recompute)
+  const cacheKey = `live:${normalizedIndexName}:${interval}:${date}:${fromTime}:${toTime}`;
+  const cached = cacheGetLive(cacheKey);
+  if (cached) return cached;
+
+  const limit = pLimit(normalizeConcurrency(concurrency));
+  const kite = getKiteClient();
+
+  // constituents
+  const constituents = await getIndexConstituents(normalizedIndexName);
+
+  // compute summary: 1 candle per constituent in [start, end]
+  const tasks = constituents.map((c) =>
+    limit(async () => {
+      const candles = await fetchCandlesSafe(kite, c.instrument_token, interval, start.toJSDate(), end.toJSDate());
+      if (!candles.length) return "no_data";
+
+      // Usually 1 candle, but safe: take the last candle in window
+      const k = candles[candles.length - 1];
+      if (k.close > k.open) return "advance";
+      if (k.close < k.open) return "decline";
+      return "unchanged";
+    })
+  );
+
+  const results = await Promise.all(tasks);
+
+  const summary = { advances: 0, declines: 0, unchanged: 0, no_data: 0 };
+  for (const r of results) {
+    if (r === "advance") summary.advances += 1;
+    else if (r === "decline") summary.declines += 1;
+    else if (r === "unchanged") summary.unchanged += 1;
+    else summary.no_data += 1;
+  }
+
+  const payload = {
+    indexName: normalizedIndexName,
+    interval,
+    window: {
+      date,
+      fromTime,
+      toTime,
+    },
+    slotCompleted: true,
+    summary,
+    source: "computed",
+  };
+
+  // ✅ cache until next slot boundary (rough TTL)
+  // ex: for 5m keep ~30s-60s, for 15m keep ~60s-120s, etc.
+  const ttlMs = Math.min(90_000, mins * 60_000);
+  cacheSetLive(cacheKey, payload, ttlMs);
+
+  return payload;
+}
+
 
 module.exports = {
   getAdvanceDecline,
+  getAdvanceDeclineLatestSlot,
   ValidationError,
 };

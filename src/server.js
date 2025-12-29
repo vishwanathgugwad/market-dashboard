@@ -1,7 +1,7 @@
 const express = require("express");
 const { getKiteClient } = require("./services/kiteClient");
 const { getTradingDaysForIndex } = require("./services/historical");
-const { getAdvanceDecline, ValidationError } = require("./services/advanceDecline");
+const { getAdvanceDecline, ValidationError, getAdvanceDeclineLatestSlot} = require("./services/advanceDecline");
 const { getIndexContributorsLive } = require("./services/indexContributors");
 const { getRedis } = require("./cache/redis");  
 const { buildBreadthKeys } = require("./cache/breadthKey");
@@ -230,6 +230,20 @@ function createServer({ stream, candleStore, indexTokens }) {
       return res.status(500).json({ error: "Failed to load breadth" });
     }
   });
+
+  app.get("/api/live/breadth/:indexName", async (req, res) => {
+    try {
+      const indexName = req.params.indexName;
+      const interval = req.query.interval || "5minute";
+      const concurrency = req.query.concurrency;
+  
+      const data = await getAdvanceDeclineLatestSlot({ indexName, interval, concurrency });
+      res.json(data);
+    } catch (err) {
+      res.status(400).json({ error: err?.message || "Failed" });
+    }
+  });
+
 
   app.get("/api/live/contributors/:indexRoute", async (req, res) => {
     const { indexRoute } = req.params;

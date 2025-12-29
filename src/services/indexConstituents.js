@@ -1,5 +1,7 @@
 const { loadInstruments } = require("./instruments");
 const { setTimeout: sleep } = require("timers/promises");
+const indexTokenCache = new Map(); // key -> { token, expiresAt }
+
 
 const INDEX_NAME_TO_NSE = {
   NIFTY50: "NIFTY 50",
@@ -62,6 +64,13 @@ function getSupportedIndexName(indexName) {
   return normalized;
 }
 
+async function withTimeout(promise, ms, label = "timeout") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label)), ms)),
+  ]);
+}
+
 async function getNseCookieHeader() {
   const now = Date.now();
   if (nseCookieCache.cookie && nseCookieCache.expiresAt > now) {
@@ -117,83 +126,86 @@ async function fetchNseConstituents(indexName) {
   const cached = constituentsCache.get(normalized);
   const now = Date.now();
 
+  // ✅ serve fresh cache
   if (cached?.data && cached.expiresAt > now) {
     return cached.data;
   }
 
+  // ✅ de-dupe in-flight
   if (cached?.inflight) {
     return cached.inflight;
   }
 
   const nseIndexName = INDEX_NAME_TO_NSE[normalized];
-  const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(
-    nseIndexName
-  )}`;
-  const referer = `https://www.nseindia.com/market-data/live-equity-market?symbol=${encodeURIComponent(
-    nseIndexName
-  )}`;
+  const url = `https://www.nseindia.com/api/equity-stockIndices?index=${encodeURIComponent(nseIndexName)}`;
+  const referer = `https://www.nseindia.com/market-data/live-equity-market?symbol=${encodeURIComponent(nseIndexName)}`;
 
   const inflight = (async () => {
     try {
       let cookieHeader = await getNseCookieHeader();
-  
-      let response = await fetchJsonWithRetry(
-        url,
-        { headers: buildNseHeaders({ referer, cookieHeader }) },
-        { retries: 2, timeoutMs: 20000 }
-      );
-  
-      if (response.status === 401 || response.status === 403) {
-        nseCookieCache.cookie = null;
-        cookieHeader = await getNseCookieHeader();
-  
-        response = await fetchJsonWithRetry(
+
+      // ✅ hard timeout around the network call
+      let response = await withTimeout(
+        fetchJsonWithRetry(
           url,
           { headers: buildNseHeaders({ referer, cookieHeader }) },
           { retries: 2, timeoutMs: 20000 }
+        ),
+        12000,
+        "NSE constituents timeout"
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        nseCookieCache.cookie = null;
+        cookieHeader = await getNseCookieHeader();
+
+        response = await withTimeout(
+          fetchJsonWithRetry(
+            url,
+            { headers: buildNseHeaders({ referer, cookieHeader }) },
+            { retries: 2, timeoutMs: 20000 }
+          ),
+          12000,
+          "NSE constituents timeout"
         );
       }
-  
+
       if (!response.ok) {
         throw new Error(`NSE HTTP ${response.status}`);
       }
-  
+
       const payload = await response.json();
-      const symbols = (payload?.data || [])
-        .map((row) => row.symbol)
-        .filter(Boolean);
-  
-        constituentsCache.set(normalized, {
-          data: cached?.data || null,            // ✅ preserve stale symbols
-          expiresAt: cached?.expiresAt || 0,     // optional preserve
-          inflight,
-        });
-  
+      const symbols = (payload?.data || []).map((row) => row.symbol).filter(Boolean);
+
+      // ✅ store NEW symbols in cache
+      constituentsCache.set(normalized, {
+        data: symbols,
+        expiresAt: Date.now() + CONSTITUENTS_TTL_MS,
+        inflight: null,
+      });
+
       return symbols;
     } catch (err) {
-      // ✅ FALLBACK TO STALE CACHE
+      // ✅ fallback to stale data if available
       const stale = cached?.data || constituentsCache.get(normalized)?.data;
-
       if (stale && stale.length) {
-        console.warn(
-          `NSE fetch failed for ${normalized}. Using stale constituents.`,
-          err?.message || err
-        );
+        console.warn(`NSE fetch failed for ${normalized}. Using stale constituents.`, err?.message || err);
         return stale;
       }
       throw err;
     }
   })();
-  
 
+  // ✅ mark inflight (preserve stale data if exists)
   constituentsCache.set(normalized, {
-    data: null,
-    expiresAt: 0,
+    data: cached?.data || null,
+    expiresAt: cached?.expiresAt || 0,
     inflight,
   });
 
   return inflight;
 }
+
 
 async function getKiteInstrumentsCached() {
   const now = Date.now();
@@ -218,15 +230,13 @@ async function getKiteInstrumentsCached() {
 
 async function getIndexInstrumentToken(indexName) {
   const normalized = getSupportedIndexName(indexName);
+
+  const cached = indexTokenCache.get(normalized);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) return cached.token;
+
   const instruments = await getKiteInstrumentsCached();
   const nseIndexName = INDEX_NAME_TO_NSE[normalized];
-
-  // Try to locate the index instrument in Kite instruments dump.
-  // Common patterns:
-  // - exchange: "NSE"
-  // - instrument_type: "INDEX" (sometimes)
-  // - segment: "INDICES" (sometimes)
-  // - name or tradingsymbol equals "NIFTY 50", "NIFTY BANK", etc.
   const target = String(nseIndexName).toUpperCase();
 
   let found = null;
@@ -236,7 +246,6 @@ async function getIndexInstrumentToken(indexName) {
 
     const instrumentType = String(row.instrument_type || "").toUpperCase();
     const segment = String(row.segment || "").toUpperCase();
-
     const looksLikeIndex = instrumentType === "INDEX" || segment === "INDICES";
     if (!looksLikeIndex) continue;
 
@@ -249,7 +258,6 @@ async function getIndexInstrumentToken(indexName) {
     }
   }
 
-  // Fallback: some dumps might not label INDEX properly; match by name/ts only.
   if (!found) {
     for (const row of instruments) {
       if (row.exchange !== "NSE") continue;
@@ -263,22 +271,23 @@ async function getIndexInstrumentToken(indexName) {
   }
 
   if (!found) {
-    throw new Error(
-      `Index instrument not found in Kite instruments dump for ${normalized} (${nseIndexName}).`
-    );
+    throw new Error(`Index instrument not found in Kite instruments dump for ${normalized} (${nseIndexName}).`);
   }
 
   const token = Number(found.instrument_token);
   if (!Number.isFinite(token)) {
-    throw new Error(
-      `Invalid instrument_token for ${normalized} (${nseIndexName}): ${found.instrument_token}`
-    );
+    throw new Error(`Invalid instrument_token for ${normalized} (${nseIndexName}): ${found.instrument_token}`);
   }
-  console.log(
-    `[INDEX TOKEN] ${normalized} -> ${token}`
-  );
+
+  indexTokenCache.set(normalized, {
+    token,
+    expiresAt: Date.now() + KITE_INSTRUMENTS_TTL_MS,
+  });
+
+  console.log(`[INDEX TOKEN] ${normalized} -> ${token}`);
   return token;
 }
+
 
 async function getIndexConstituents(indexName) {
   // Kite Connect instruments dump excludes index membership, so we must pull

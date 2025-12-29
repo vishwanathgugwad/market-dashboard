@@ -292,11 +292,20 @@ const LiveDonutCard = ({
   state: LiveCardState;
 }) => {
   const data = state.data;
-  const waiting = data ? !data.slotCompleted : false;
-  const up = data?.summary.advances ?? 0;
-  const down = data?.summary.declines ?? 0;
-  const caption = waiting ? data?.message || `Waiting for first ${intervalLabel} candle` : undefined;
-  const errorText = state.error ? 'Failed to fetch' : undefined;
+
+  // waiting if backend says slot not completed OR we don't have data yet but not an error
+  const waiting = (!state.error && (!data || data.slotCompleted === false));
+
+  const up = data?.summary?.advances ?? 0;
+  const down = data?.summary?.declines ?? 0;
+
+  // show backend message when waiting (e.g., "Waiting for first 15-minute candle")
+  const caption = waiting
+    ? data?.message || `Waiting for first ${intervalLabel} candle`
+    : undefined;
+
+  // show actual error text (not generic)
+  const errorText = state.error || undefined;
 
   return (
     <DonutStatCard
@@ -310,5 +319,6 @@ const LiveDonutCard = ({
     />
   );
 };
+
 
 export default DashboardPage;
