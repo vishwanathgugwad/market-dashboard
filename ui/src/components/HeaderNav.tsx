@@ -1,6 +1,6 @@
 import { alpha } from '@mui/material/styles';
 import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { isMarketOpen } from '../lib/marketTime';
 import ThemeToggle from './ThemeToggle';
@@ -12,9 +12,10 @@ interface HeaderNavItem {
 
 interface HeaderNavProps {
   items: HeaderNavItem[];
+  moodPill?: ReactNode;
 }
 
-const HeaderNav = ({ items }: HeaderNavProps) => {
+const HeaderNav = ({ items, moodPill }: HeaderNavProps) => {
   const { pathname } = useLocation();
   const theme = useTheme();
   const [now, setNow] = useState(() => new Date());
@@ -85,6 +86,7 @@ const HeaderNav = ({ items }: HeaderNavProps) => {
               }}
             />
             <Chip size="small" label={`Last updated ${lastUpdated}`} />
+            {moodPill}
           </Stack>
         </Stack>
         <Box sx={{ position: { xs: 'static', md: 'absolute' }, right: 0, top: 0 }}>

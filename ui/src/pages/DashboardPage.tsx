@@ -1,6 +1,7 @@
 import { Box, Chip, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import ContributorsCard from '../components/ContributorsCard';
 import DonutStatCard from '../components/DonutStatCard';
 import MetricCard from '../components/MetricCard';
@@ -13,9 +14,12 @@ import {
   fetchLiveBreadth,
   fetchLiveContributors,
   fetchLiveIndexQuote,
+  fetchMarketMoodLive,
   LiveBreadthResponse,
   LiveIndexQuoteResponse,
+  MarketMood,
 } from '../lib/api';
+import { HeaderMoodContext, HeaderMoodState } from '../layouts/AppLayout';
 
 type LiveCardState = {
   data?: LiveBreadthResponse;
@@ -33,6 +37,12 @@ type LiveIndexQuoteState = {
   loading: boolean;
   data?: LiveIndexQuoteResponse;
   error?: string;
+};
+
+type MoodState = {
+  loading: boolean;
+  data?: MarketMood | null;
+  error?: string | null;
 };
 
 const INDEX_OPTIONS: SegmentedTabOption[] = [
@@ -55,12 +65,16 @@ const DashboardPage = () => {
   const [live5, setLive5] = useState<LiveCardState>({ loading: true });
   const [live15, setLive15] = useState<LiveCardState>({ loading: true });
   const [live60, setLive60] = useState<LiveCardState>({ loading: true });
+  const [mood5, setMood5] = useState<MoodState>({ loading: true, data: null, error: null });
+  const [mood15, setMood15] = useState<MoodState>({ loading: true, data: null, error: null });
+  const [mood60, setMood60] = useState<MoodState>({ loading: true, data: null, error: null });
   const [liveQuote, setLiveQuote] = useState<LiveIndexQuoteState>({ loading: true });
   const [contributorsState, setContributorsState] = useState<ContributorsState>({
     loading: true,
     items: [],
     error: null,
   });
+  const { setHeaderMood } = useOutletContext<HeaderMoodContext>();
 
   const marketOpen = isMarketOpen(now);
   const indexKey = useMemo(() => INDEX_KEY_MAP[selectedIndex], [selectedIndex]);
@@ -112,6 +126,82 @@ const DashboardPage = () => {
       clearInterval(timer);
     };
   }, [indexKey]);
+
+  useEffect(() => {
+    let isActive = true;
+    const controllers = new Map<string, AbortController>();
+    const timers: number[] = [];
+
+    const logError = (message: string, error: unknown) => {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.error(message, error);
+      }
+    };
+
+    const fetchMood = async (
+      interval: '5minute' | '15minute' | '60minute',
+      setter: Dispatch<SetStateAction<MoodState>>,
+    ) => {
+      const existingController = controllers.get(interval);
+      if (existingController) {
+        existingController.abort();
+      }
+      const controller = new AbortController();
+      controllers.set(interval, controller);
+
+      setter((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const data = await fetchMarketMoodLive({ indexKey, interval, signal: controller.signal });
+        if (!isActive) return;
+        setter({ data, loading: false, error: null });
+      } catch (error) {
+        if (!isActive) return;
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        logError('Failed to fetch market mood', error);
+        const message = error instanceof Error ? error.message : 'Failed to fetch';
+        setter((prev) => ({ ...prev, loading: false, error: message }));
+      }
+    };
+
+    const schedule = (
+      interval: '5minute' | '15minute' | '60minute',
+      setter: Dispatch<SetStateAction<MoodState>>,
+      openMs: number,
+    ) => {
+      const pollMs = marketOpen ? openMs : 60000;
+      fetchMood(interval, setter);
+      const timer = window.setInterval(() => fetchMood(interval, setter), pollMs);
+      timers.push(timer);
+    };
+
+    schedule('5minute', setMood5, 5000);
+    schedule('15minute', setMood15, 10000);
+    schedule('60minute', setMood60, 15000);
+
+    return () => {
+      isActive = false;
+      timers.forEach((timer) => clearInterval(timer));
+      controllers.forEach((controller) => controller.abort());
+    };
+  }, [indexKey, marketOpen]);
+
+  useEffect(() => {
+    setHeaderMood((prev: HeaderMoodState) => ({
+      ...prev,
+      mood: mood5.data ?? null,
+      loading: mood5.loading,
+      error: mood5.error ?? null,
+    }));
+  }, [mood5.data, mood5.error, mood5.loading, setHeaderMood]);
+
+  useEffect(() => {
+    return () => {
+      setHeaderMood({ mood: null, loading: false, error: null });
+    };
+  }, [setHeaderMood]);
 
   useEffect(() => {
     let isActive = true;
@@ -385,9 +475,9 @@ const DashboardPage = () => {
 
         <Stack spacing={2.5}>
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(3, 1fr)' }} gap={2}>
-            <LiveDonutCard title="5 min live" intervalLabel="5 min" state={live5} />
-            <LiveDonutCard title="15 min live" intervalLabel="15 min" state={live15} />
-            <LiveDonutCard title="1 hour live" intervalLabel="1 hour" state={live60} />
+            <LiveDonutCard title="5 min live" state={live5} moodState={mood5} />
+            <LiveDonutCard title="15 min live" state={live15} moodState={mood15} />
+            <LiveDonutCard title="1 hour live" state={live60} moodState={mood60} />
           </Box>
 
         </Stack>
@@ -409,14 +499,15 @@ const DashboardPage = () => {
 
 const LiveDonutCard = ({
   title,
-  intervalLabel,
   state,
+  moodState,
 }: {
   title: string;
-  intervalLabel: string;
   state: LiveCardState;
+  moodState: MoodState;
 }) => {
   const data = state.data;
+  const moodData = moodState.data ?? null;
 
   // waiting if backend says slot not completed OR we don't have data yet but not an error
   const waiting = (!state.error && (!data || data.slotCompleted === false));
@@ -430,6 +521,36 @@ const LiveDonutCard = ({
   // show actual error text (not generic)
   const errorText = state.error || undefined;
 
+  const moodWaiting = !moodData || moodData.slotCompleted === false || moodData.adr === null;
+  const moodError = moodState.error;
+
+  const adrValue = moodWaiting || moodError ? '—' : moodData?.adr?.toFixed(2) ?? '—';
+  const spreadValue =
+    moodWaiting || moodError || moodData?.spread === null || moodData?.spread === undefined
+      ? '—'
+      : `${moodData.spread >= 0 ? '+' : ''}${moodData.spread.toFixed(0)}`;
+  const spreadTone =
+    moodWaiting || moodError || moodData?.spread === null || moodData?.spread === undefined
+      ? 'text.secondary'
+      : moodData.spread >= 0
+      ? 'success.main'
+      : 'error.main';
+
+  const metaLine = (
+    <Typography
+      variant="caption"
+      sx={{
+        color: 'text.secondary',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      ADR {adrValue} • Spread{' '}
+      <Box component="span" sx={{ color: spreadTone, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+        {spreadValue}
+      </Box>
+    </Typography>
+  );
+
   return (
     <DonutStatCard
       title={title}
@@ -438,6 +559,8 @@ const LiveDonutCard = ({
       loading={state.loading}
       empty={waiting || !!errorText}
       caption={caption}
+      meta={metaLine}
+      metaCaption={moodError ? 'Failed to fetch' : undefined}
       error={errorText}
     />
   );

@@ -1,4 +1,5 @@
 import { Box, Card, CardContent, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { ReactNode } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 
 interface DonutStatCardProps {
@@ -6,12 +7,14 @@ interface DonutStatCardProps {
   up: number;
   down: number;
   caption?: string;
+  meta?: ReactNode;
+  metaCaption?: string;
   error?: string;
   loading?: boolean;
   empty?: boolean;
 }
 
-const DonutStatCard = ({ title, up, down, caption, error, loading, empty }: DonutStatCardProps) => {
+const DonutStatCard = ({ title, up, down, caption, meta, metaCaption, error, loading, empty }: DonutStatCardProps) => {
   const theme = useTheme();
   const data = empty
     ? [{ name: 'Waiting', value: 1, color: theme.palette.divider }]
@@ -46,6 +49,12 @@ const DonutStatCard = ({ title, up, down, caption, error, loading, empty }: Donu
               </Typography>
             </Stack>
           </Stack>
+          {meta}
+          {metaCaption && (
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              {metaCaption}
+            </Typography>
+          )}
           {(caption || error) && (
             <Typography variant="caption" color={error ? 'error.main' : 'text.secondary'} textAlign="center">
               {error || caption}
