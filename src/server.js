@@ -2,6 +2,7 @@ const express = require("express");
 const { getKiteClient } = require("./services/kiteClient");
 const { getTradingDaysForIndex } = require("./services/historical");
 const { getAdvanceDecline, ValidationError, getAdvanceDeclineLatestSlot} = require("./services/advanceDecline");
+const { getMarketMoodLive, getMarketMoodByDay } = require("./services/marketMood");
 const { getIndexContributorsLive } = require("./services/indexContributors");
 const { getLiveIndexQuote } = require("./services/liveIndexQuote");
 const { getRedis } = require("./cache/redis");  
@@ -257,6 +258,69 @@ function createServer({ stream, candleStore, indexTokens }) {
     }
   });
 
+  app.get("/api/mood/live/:indexKey", async (req, res) => {
+    const interval = req.query.interval || "5minute";
+    const concurrency = req.query.concurrency;
+    const indexMap = {
+      nifty50: "NIFTY50",
+      banknifty: "BANKNIFTY",
+      finnifty: "FINNIFTY",
+    };
+
+    const key = String(req.params.indexKey || "").toLowerCase();
+    const indexName = indexMap[key] || String(req.params.indexKey || "").toUpperCase();
+
+    try {
+      const data = await getMarketMoodLive({ indexName, interval, concurrency });
+      return res.json({
+        ok: true,
+        mode: "live",
+        ...data,
+      });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        return res.status(400).json({ ok: false, error: err.message });
+      }
+      console.error("Failed to load market mood (live)", err);
+      return res.status(502).json({ ok: false, error: err?.message || "Failed to load market mood." });
+    }
+  });
+
+  app.get("/api/mood/by-day/:indexKey", async (req, res) => {
+    const { date, interval = "5minute", fromTime, toTime, concurrency } = req.query;
+    const indexMap = {
+      nifty50: "NIFTY50",
+      banknifty: "BANKNIFTY",
+      finnifty: "FINNIFTY",
+    };
+
+    const key = String(req.params.indexKey || "").toLowerCase();
+    const indexName = indexMap[key] || String(req.params.indexKey || "").toUpperCase();
+
+    try {
+      const data = await getMarketMoodByDay({
+        indexName,
+        date,
+        interval,
+        fromTime,
+        toTime,
+        concurrency,
+      });
+
+      return res.json({
+        ok: true,
+        mode: "day",
+        ...data,
+      });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        return res.status(400).json({ ok: false, error: err.message });
+      }
+      console.error("Failed to load market mood (day)", err);
+      return res.status(502).json({ ok: false, error: err?.message || "Failed to load market mood." });
+    }
+  });
+
   // curl "http://localhost:3000/api/analysis/summary?index=NIFTY50&timeframe=15minute&indicators=ema,rsi,bb"
   app.get("/api/analysis/summary", async (req, res) => {
     try {
@@ -336,5 +400,9 @@ function createServer({ stream, candleStore, indexTokens }) {
 
   return app;
 }
+
+// Manual test commands:
+// curl "http://localhost:3000/api/mood/live/NIFTY50?interval=15minute"
+// curl "http://localhost:3000/api/mood/by-day/NIFTY50?date=2025-12-30&interval=15minute&fromTime=09:15:00&toTime=15:30:00"
 
 module.exports = { createServer };
