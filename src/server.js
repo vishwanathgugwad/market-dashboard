@@ -6,6 +6,7 @@ const { getIndexContributorsLive } = require("./services/indexContributors");
 const { getLiveIndexQuote } = require("./services/liveIndexQuote");
 const { getRedis } = require("./cache/redis");  
 const { buildBreadthKeys } = require("./cache/breadthKey");
+const { getAnalysisSummary } = require("./analysis/summary");
 
 const CONTRIBUTORS_CACHE_TTL_MS = 20 * 1000;
 const contributorsCache = new Map();
@@ -253,6 +254,23 @@ function createServer({ stream, candleStore, indexTokens }) {
     } catch (err) {
       console.error("Failed to load index quote", err);
       return res.status(502).json({ error: err?.message || "Failed to load index quote." });
+    }
+  });
+
+  // curl "http://localhost:3000/api/analysis/summary?index=NIFTY50&timeframe=15minute&indicators=ema,rsi,bb"
+  app.get("/api/analysis/summary", async (req, res) => {
+    try {
+      const index = String(req.query.index || "").toUpperCase();
+      const timeframe = String(req.query.timeframe || "").toLowerCase();
+      const indicators = req.query.indicators || "";
+
+      const payload = await getAnalysisSummary({ index, timeframe, indicators });
+      return res.json(payload);
+    } catch (err) {
+      console.error("Failed to build analysis summary", err);
+      return res.status(400).json({
+        error: err?.message || "Failed to build analysis summary.",
+      });
     }
   });
 
