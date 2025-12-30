@@ -1,13 +1,35 @@
 import { Box } from '@mui/material';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import HeaderNav from '../components/HeaderNav';
+import MarketMoodPill from '../components/MarketMoodPill';
+import { MarketMood } from '../lib/api';
 
 const navItems = [
   { label: 'DASHBOARD', path: '/dashboard' },
   { label: 'HISTORICAL DATA', path: '/historical' },
 ];
 
+export type HeaderMoodState = {
+  mood: MarketMood | null;
+  loading: boolean;
+  error?: string | null;
+};
+
+export type HeaderMoodContext = {
+  setHeaderMood: Dispatch<SetStateAction<HeaderMoodState>>;
+};
+
 const AppLayout = () => {
+  const { pathname } = useLocation();
+  const [headerMood, setHeaderMood] = useState<HeaderMoodState>({ mood: null, loading: true, error: null });
+
+  const moodPill = useMemo(() => {
+    const onDashboard = pathname === '/' || pathname.startsWith('/dashboard');
+    if (!onDashboard) return null;
+    return <MarketMoodPill mood={headerMood.mood} loading={headerMood.loading} error={headerMood.error} />;
+  }, [headerMood.error, headerMood.loading, headerMood.mood, pathname]);
+
   return (
     <Box
       sx={{
@@ -18,7 +40,7 @@ const AppLayout = () => {
         flexDirection: 'column',
       }}
     >
-      <HeaderNav items={navItems} />
+      <HeaderNav items={navItems} moodPill={moodPill} />
 
       <Box
         component="main"
@@ -31,7 +53,7 @@ const AppLayout = () => {
           py: { xs: 3, md: 5 },
         }}
       >
-        <Outlet />
+        <Outlet context={{ setHeaderMood }} />
       </Box>
     </Box>
   );

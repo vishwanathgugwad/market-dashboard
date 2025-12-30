@@ -78,6 +78,25 @@ export type LiveIndexQuoteResponse = {
   changePct: number;
 };
 
+export type MarketMood = {
+  ok: boolean;
+  indexKey: string;
+  indexName: string;
+  interval: '5minute' | '15minute' | '60minute';
+  timestamp: string;
+  slotCompleted: boolean;
+  advances: number;
+  declines: number;
+  unchanged?: number;
+  adr: number | null;
+  spread: number | null;
+  pctAdv: number | null;
+  score: number | null;
+  mood: string | null;
+  message?: string;
+  source?: string;
+};
+
 const INDEX_ROUTE_MAP: Record<string, string> = {
   nifty50: 'nifty50',
   banknifty: 'banknifty',
@@ -228,4 +247,33 @@ export const fetchLiveIndexQuote = async ({
   }
 
   return payload as LiveIndexQuoteResponse;
+};
+
+export const fetchMarketMoodLive = async ({
+  indexKey,
+  interval,
+  signal,
+}: {
+  indexKey: string;
+  interval: '5minute' | '15minute' | '60minute';
+  signal?: AbortSignal;
+}): Promise<MarketMood> => {
+  const indexRoute = INDEX_ROUTE_MAP[indexKey];
+  if (!indexRoute) {
+    throw new Error('Selected index is not supported.');
+  }
+
+  const url = buildUrl(`/api/mood/live/${indexRoute}`, { interval });
+  const res = await fetch(url, { signal });
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(payload?.error || payload?.message || `Request failed (${res.status})`);
+  }
+
+  if (payload?.error) {
+    throw new Error(payload.error);
+  }
+
+  return payload as MarketMood;
 };
